@@ -174,8 +174,8 @@ and confirm path has to be fast.
 
 ### Hardening
 
-- Structured logs with redaction, and log files rotated where the agent owns
-  them.
+- ~~Structured logs with redaction~~ (done: `--log-format json`, credential
+  masking). Log rotation is left to launchd/journald.
 - Check peer identity inside the tailnet (Tailscale `whois`), not only the
   address range.
 - Optional end-to-end encrypted push bodies: a key shared in the pairing QR,
@@ -185,7 +185,7 @@ and confirm path has to be fast.
   restart, since the agent already records Claude's session ID.
 - Agent upgrades that refuse to restart while sessions are alive
   (`install-service` already refuses without `--force`).
-- Revoke a machine from the app, not only with `hedera tokens revoke`.
+- ~~Revoke a machine from the app~~ (done: `pairing.unpair`).
 
 ## Known risks
 

@@ -19,6 +19,7 @@ import (
 
 	"github.com/tobiaswadsethdev/hedera/agent/internal/config"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ids"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/logging"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/pairing"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/push"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/server"
@@ -30,6 +31,7 @@ func cmdRun(args []string) error {
 	fs := newFlags("run", usageFor("run"))
 	devLoopback := fs.Bool("dev-loopback", false, "also serve the remote (TLS) API on 127.0.0.1, for testing pairing without Tailscale")
 	verbose := fs.Bool("v", false, "debug logging")
+	logFormat := fs.String("log-format", "text", "log line format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -37,7 +39,11 @@ func cmdRun(args []string) error {
 	if *verbose {
 		level = slog.LevelDebug
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	format, err := logging.ParseFormat(*logFormat)
+	if err != nil {
+		return err
+	}
+	log := logging.New(os.Stderr, format, level)
 
 	dir, err := config.Dir()
 	if err != nil {

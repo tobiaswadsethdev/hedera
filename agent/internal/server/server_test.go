@@ -870,3 +870,49 @@ func TestPushTestEndpoint(t *testing.T) {
 		t.Fatal("route not removed")
 	}
 }
+
+func TestUnpairRevokesOwnPairing(t *testing.T) {
+	h := newHarness(t, nil)
+	pairDevice := func() map[string]string {
+		resp := h.localAPI(t, "POST", "/v1/local/pair-codes")
+		var nc struct{ URL string }
+		json.NewDecoder(resp.Body).Decode(&nc)
+		_, out := h.pair(t, urlParam(t, nc.URL, "c"))
+		return out
+	}
+	phone, ipad := pairDevice(), pairDevice()
+	dial := func(tok string) *client.Client {
+		c, err := client.Dial(ctx(t), client.Options{URL: h.remoteURL, Token: tok, Fingerprint: h.fp})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	c1, c2, other := dial(phone["token"]), dial(phone["token"]), dial(ipad["token"])
+
+	if err := c1.Call(ctx(t), proto.TPairingUnpair, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []*client.Client{c1, c2} {
+		select {
+		case <-c.Done():
+		case <-time.After(5 * time.Second):
+			t.Fatal("connection stayed open after unpair")
+		}
+		if c.CloseStatus() != proto.CloseRevoked {
+			t.Fatalf("close status %d", c.CloseStatus())
+		}
+	}
+	if _, err := client.Dial(ctx(t), client.Options{URL: h.remoteURL, Token: phone["token"], Fingerprint: h.fp}); !errors.Is(err, client.ErrUnauthorized) {
+		t.Fatalf("token still works: %v", err)
+	}
+	// The other device is untouched.
+	var list proto.ListResult
+	if err := other.Call(ctx(t), proto.TSessionList, nil, &list); err != nil {
+		t.Fatal(err)
+	}
+	// The local CLI can't unpair (it isn't a pairing).
+	if err := h.dialLocal(t).Call(ctx(t), proto.TPairingUnpair, nil, nil); codeOf(err) != proto.CodeInvalidArgument {
+		t.Fatalf("local unpair: %v", err)
+	}
+}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/tobiaswadsethdev/hedera/agent/internal/pairing"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/session"
 )
@@ -210,6 +211,7 @@ var handlers = map[string]handler{
 	proto.TPushConfigure:     (*conn).handlePushConfigure,
 	proto.TPushStatus:        (*conn).handlePushStatus,
 	proto.TPushRemove:        (*conn).handlePushRemove,
+	proto.TPairingUnpair:     (*conn).handleUnpair,
 }
 
 func (c *conn) handleText(data []byte) {
@@ -593,4 +595,21 @@ func (c *conn) handlePushRemove([]byte) (any, func(), error) {
 	}
 	c.srv.Push.Remove(c.principal)
 	return nil, nil, nil
+}
+
+// handleUnpair lets a paired device remove itself, e.g. when the user deletes
+// the machine in the app: its token stops working, its push route goes, and
+// every connection using it is closed with 4003 once the response is sent.
+func (c *conn) handleUnpair([]byte) (any, func(), error) {
+	if c.principal == LocalPrincipal {
+		return nil, nil, proto.Errorf(proto.CodeInvalidArgument, "only a paired device can unpair; use 'hedera tokens revoke' locally")
+	}
+	if err := c.srv.Pairings.Revoke(c.principal); err != nil && !errors.Is(err, pairing.ErrNotFound) {
+		return nil, nil, err
+	}
+	if c.srv.Push != nil {
+		c.srv.Push.Remove(c.principal)
+	}
+	c.log.Info("device unpaired itself")
+	return nil, func() { c.srv.CloseConnections(c.principal, proto.CloseRevoked, "unpaired") }, nil
 }

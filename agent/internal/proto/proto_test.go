@@ -55,6 +55,7 @@ var requestTypes = map[string]func() any{
 	TPushConfigure:     func() any { return &PushConfigureRequest{} },
 	TPushStatus:        func() any { return &struct{}{} },
 	TPushRemove:        func() any { return &struct{}{} },
+	TPairingUnpair:     func() any { return &struct{}{} },
 }
 
 var resultTypes = map[string]func() any{
