@@ -20,7 +20,7 @@ remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 | 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
 | 3 | iOS app: pairing, machine list, terminal, reconnect | on hold |
 | 4 | Radix + APNs, notifications with reply | server side done; app side waits for phase 3 |
-| 5 | Windows (ConPTY, logon task), hardening | in progress |
+| 5 | Windows (ConPTY, logon task), hardening | done, except items that need the app or a Windows desktop |
 
 ## Build
 
