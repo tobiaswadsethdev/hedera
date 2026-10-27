@@ -27,7 +27,11 @@ on that machine, so the agent treats every network path as hostile.
 - Every comparison is constant-time (`crypto/subtle`), and the token check
   compares against every stored hash rather than stopping at the first match.
 - Tokens are 32 random bytes. They never appear in logs; logs name pairings by
-  ID (`p_…`).
+  ID (`p_…`). As a backstop, the logger masks anything shaped like a hedera or
+  Radix credential (`hdt_`, `hlt_`, `hht_`, `hrp_`, `hrd_`) in every message
+  and value, including inside error strings.
+- A paired device can revoke itself (`pairing.unpair`), so deleting a machine
+  in the app really cuts it off rather than just forgetting the token.
 - Failed pairing attempts are limited to 10 per peer address per 10 minutes,
   though a 160-bit code can't be guessed anyway.
 - Revoking a pairing deletes its hash and closes its live connections with

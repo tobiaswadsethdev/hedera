@@ -791,5 +791,26 @@
       "t": "push.remove",
       "id": 22
     }
+  },
+  {
+    "name": "pairing.unpair",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "pairing.unpair",
+      "id": 30
+    }
+  },
+  {
+    "name": "pairing.unpair from the local CLI",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "res",
+      "re": 30,
+      "ok": false,
+      "error": {
+        "code": "invalid_argument",
+        "message": "only a paired device can unpair; use 'hedera tokens revoke' locally"
+      }
+    }
   }
 ]

@@ -94,6 +94,20 @@ Failure is 401 for an unknown, used or expired code; 400 for a malformed body;
 429 when too many failed attempts came from the peer address recently. The code
 carries no authority beyond this single request.
 
+### 1.4 Unpairing
+
+A paired device can remove itself, for example when the user deletes the
+machine in the app:
+
+```json
+→ {"t":"pairing.unpair","id":30}
+← {"t":"res","re":30,"ok":true}
+```
+
+The agent forgets the device's token and its push route, then closes every
+connection authenticated with that token using close code `4003`. On the local
+listener this is `invalid_argument`; use `hedera tokens revoke` there.
+
 ## 2. Framing
 
 - **Text frames** carry one JSON object each (UTF-8, at most 1 MiB).

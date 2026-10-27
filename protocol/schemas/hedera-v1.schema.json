@@ -483,6 +483,18 @@
           "then": {
             "$ref": "#/$defs/requests/push.remove"
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "pairing.unpair"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/pairing.unpair"
+          }
         }
       ]
     },
@@ -733,7 +745,8 @@
         }
       },
       "push.status": {},
-      "push.remove": {}
+      "push.remove": {},
+      "pairing.unpair": {}
     },
     "results": {
       "hello": {
@@ -963,7 +976,8 @@
           }
         }
       },
-      "push.remove": {}
+      "push.remove": {},
+      "pairing.unpair": {}
     },
     "response": {
       "type": "object",

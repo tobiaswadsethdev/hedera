@@ -23,6 +23,7 @@ const (
 	TPushConfigure     = "push.configure"
 	TPushStatus        = "push.status"
 	TPushRemove        = "push.remove"
+	TPairingUnpair     = "pairing.unpair"
 )
 
 // Agent-to-client message types.
