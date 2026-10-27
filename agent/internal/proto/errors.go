@@ -15,6 +15,7 @@ const (
 	CodeSessionRunning     = "session_running"
 	CodeLimitExceeded      = "limit_exceeded"
 	CodeStale              = "stale"
+	CodeUnavailable        = "unavailable"
 	CodeInternal           = "internal"
 )
 

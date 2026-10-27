@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/tobiaswadsethdev/hedera/agent/internal/client"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/pairing"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/push"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/session"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/tlsutil"
 )
@@ -756,5 +759,114 @@ func TestHelloAdvertisesClaude(t *testing.T) {
 	c := h.dialLocal(t)
 	if strings.Join(c.Hello.Capabilities, ",") != "shell,claude" {
 		t.Fatalf("capabilities %v", c.Hello.Capabilities)
+	}
+}
+
+func fakeRadixServer(t *testing.T) (*httptest.Server, *[]string) {
+	t.Helper()
+	var events []string
+	var mu sync.Mutex
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer hrp_good" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/v1/link":
+			json.NewEncoder(w).Encode(map[string]any{"label": "test phone"})
+		case "/v1/events":
+			b, _ := io.ReadAll(r.Body)
+			mu.Lock()
+			events = append(events, string(b))
+			mu.Unlock()
+			json.NewEncoder(w).Encode(map[string]any{"sent": true})
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &events
+}
+
+func TestPushRoutesFollowPairings(t *testing.T) {
+	h := newHarness(t, nil)
+	p, err := push.Open(t.TempDir(), push.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.Push = p
+	radix, _ := fakeRadixServer(t)
+
+	// Pair a "phone" and configure push from its connection.
+	resp := h.localAPI(t, "POST", "/v1/local/pair-codes")
+	var nc struct{ URL string }
+	json.NewDecoder(resp.Body).Decode(&nc)
+	_, paired := h.pair(t, urlParam(t, nc.URL, "c"))
+	phone, err := client.Dial(ctx(t), client.Options{URL: h.remoteURL, Token: paired["token"], Fingerprint: h.fp})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(phone.Hello.Capabilities, ","), "push") {
+		t.Fatalf("capabilities %v", phone.Hello.Capabilities)
+	}
+	var st proto.PushStatus
+	if err := phone.Call(ctx(t), proto.TPushConfigure, proto.PushConfigureRequest{RadixURL: radix.URL, PushToken: "hrp_bad"}, nil); codeOf(err) != proto.CodeInvalidArgument {
+		t.Fatalf("bad token: %v", err)
+	}
+	if err := phone.Call(ctx(t), proto.TPushConfigure, proto.PushConfigureRequest{RadixURL: radix.URL, PushToken: "hrp_good"}, &st); err != nil {
+		t.Fatal(err)
+	}
+	if !st.Configured || st.Label != "test phone" {
+		t.Fatalf("status %+v", st)
+	}
+	// The route belongs to the pairing; the local CLI sees it but has none of its own.
+	local := h.dialLocal(t)
+	var mine proto.PushStatus
+	local.Call(ctx(t), proto.TPushStatus, nil, &mine)
+	if mine.Configured {
+		t.Fatal("local principal should have no route")
+	}
+	var routes struct {
+		Routes []push.RouteStatus `json:"routes"`
+	}
+	json.NewDecoder(h.localAPI(t, "GET", "/v1/local/push").Body).Decode(&routes)
+	if len(routes.Routes) != 1 || routes.Routes[0].Key != paired["pairing_id"] {
+		t.Fatalf("routes %+v", routes)
+	}
+	if strings.Contains(fmt.Sprint(routes), "hrp_good") {
+		t.Fatal("local API exposes the push token")
+	}
+
+	// Revoking the pairing removes its push route.
+	h.localAPI(t, "DELETE", "/v1/local/pairings/"+paired["pairing_id"])
+	json.NewDecoder(h.localAPI(t, "GET", "/v1/local/push").Body).Decode(&routes)
+	if len(routes.Routes) != 0 {
+		t.Fatalf("route survived revocation: %+v", routes)
+	}
+}
+
+func TestPushTestEndpoint(t *testing.T) {
+	h := newHarness(t, nil)
+	p, _ := push.Open(t.TempDir(), push.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	h.srv.Push = p
+	radix, events := fakeRadixServer(t)
+	local := h.dialLocal(t)
+	if err := local.Call(ctx(t), proto.TPushConfigure, proto.PushConfigureRequest{RadixURL: radix.URL, PushToken: "hrp_good"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var res struct{ Queued int }
+	json.NewDecoder(h.localAPI(t, "POST", "/v1/local/push/test").Body).Decode(&res)
+	if res.Queued != 1 {
+		t.Fatalf("queued %d", res.Queued)
+	}
+	p.Deliver(ctx(t))
+	if len(*events) != 1 || !strings.Contains((*events)[0], `"kind":"test"`) {
+		t.Fatalf("events %v", *events)
+	}
+	if err := local.Call(ctx(t), proto.TPushRemove, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	var st proto.PushStatus
+	local.Call(ctx(t), proto.TPushStatus, nil, &st)
+	if st.Configured {
+		t.Fatal("route not removed")
 	}
 }

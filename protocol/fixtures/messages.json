@@ -681,5 +681,115 @@
         "exit": null
       }
     }
+  },
+  {
+    "name": "push.configure",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "push.configure",
+      "id": 20,
+      "radix_url": "https://radix.example.workers.dev",
+      "push_token": "hrp_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+      "prefs": {
+        "claude_turn_finished": false
+      }
+    }
+  },
+  {
+    "name": "push.configure result",
+    "direction": "agent_to_client",
+    "response_to": "push.configure",
+    "message": {
+      "t": "res",
+      "re": 20,
+      "ok": true,
+      "configured": true,
+      "radix_url": "https://radix.example.workers.dev",
+      "label": "studio",
+      "prefs": {
+        "shell_exited": true,
+        "claude_turn_finished": false,
+        "claude_needs_input": true,
+        "claude_failed": true,
+        "claude_ended": true
+      },
+      "queued": 0
+    }
+  },
+  {
+    "name": "push.configure rejected token",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "res",
+      "re": 20,
+      "ok": false,
+      "error": {
+        "code": "invalid_argument",
+        "message": "Radix rejected the push token"
+      }
+    }
+  },
+  {
+    "name": "push.configure radix unreachable",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "res",
+      "re": 20,
+      "ok": false,
+      "error": {
+        "code": "unavailable",
+        "message": "could not reach Radix: dial tcp: i/o timeout"
+      }
+    }
+  },
+  {
+    "name": "push.status",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "push.status",
+      "id": 21
+    }
+  },
+  {
+    "name": "push.status result",
+    "direction": "agent_to_client",
+    "response_to": "push.status",
+    "message": {
+      "t": "res",
+      "re": 21,
+      "ok": true,
+      "configured": true,
+      "radix_url": "https://radix.example.workers.dev",
+      "label": "studio",
+      "prefs": {
+        "shell_exited": true,
+        "claude_turn_finished": false,
+        "claude_needs_input": true,
+        "claude_failed": true,
+        "claude_ended": true
+      },
+      "last_success_at": "2026-10-27T21:00:00.000Z",
+      "queued": 1
+    }
+  },
+  {
+    "name": "push.status not configured",
+    "direction": "agent_to_client",
+    "response_to": "push.status",
+    "message": {
+      "t": "res",
+      "re": 21,
+      "ok": true,
+      "configured": false,
+      "queued": 0
+    }
+  },
+  {
+    "name": "push.remove",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "push.remove",
+      "id": 22
+    }
   }
 ]

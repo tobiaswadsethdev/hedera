@@ -3,3 +3,5 @@ node_modules/
 /agent/dist/
 *.test
 .DS_Store
+.wrangler/
+.dev.vars

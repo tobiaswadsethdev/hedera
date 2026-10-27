@@ -1,0 +1,30 @@
+// Radix configuration. Before the first deploy:
+//   npx wrangler d1 create radix            -> paste the database_id below
+//   npx wrangler secret put APNS_KEY_P8     -> contents of AuthKey_XXXXXXXXXX.p8
+//   set APNS_KEY_ID, APNS_TEAM_ID and APNS_TOPIC (the app's bundle ID) below
+//   npm run deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "radix",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "radix",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "APNS_KEY_ID": "XXXXXXXXXX",
+    "APNS_TEAM_ID": "XXXXXXXXXX",
+    "APNS_TOPIC": "com.example.hedera",
+    // Only honoured for http://127.0.0.1 or http://localhost, for local
+    // end-to-end tests against a fake APNs. Leave empty in production.
+    "APNS_ORIGIN_OVERRIDE": ""
+  },
+  // Hourly cleanup of idempotency and rate-limit rows.
+  "triggers": { "crons": ["17 * * * *"] }
+}

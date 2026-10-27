@@ -52,6 +52,9 @@ var requestTypes = map[string]func() any{
 	TSessionRemove:     func() any { return &RemoveRequest{} },
 	TEventsSubscribe:   func() any { return &SubscribeRequest{} },
 	TEventsUnsubscribe: func() any { return &struct{}{} },
+	TPushConfigure:     func() any { return &PushConfigureRequest{} },
+	TPushStatus:        func() any { return &struct{}{} },
+	TPushRemove:        func() any { return &struct{}{} },
 }
 
 var resultTypes = map[string]func() any{
@@ -61,6 +64,8 @@ var resultTypes = map[string]func() any{
 	TSessionAttach:   func() any { return &AttachResult{} },
 	TSessionResize:   func() any { return nil },
 	TEventsSubscribe: func() any { return &SubscribeResult{} },
+	TPushConfigure:   func() any { return &PushStatus{} },
+	TPushStatus:      func() any { return &PushStatus{} },
 }
 
 // TestMessageFixtures decodes every golden message into its Go type and

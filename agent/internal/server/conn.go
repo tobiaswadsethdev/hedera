@@ -207,6 +207,9 @@ var handlers = map[string]handler{
 	proto.TSessionRemove:     (*conn).handleRemove,
 	proto.TEventsSubscribe:   (*conn).handleSubscribe,
 	proto.TEventsUnsubscribe: (*conn).handleUnsubscribe,
+	proto.TPushConfigure:     (*conn).handlePushConfigure,
+	proto.TPushStatus:        (*conn).handlePushStatus,
+	proto.TPushRemove:        (*conn).handlePushRemove,
 }
 
 func (c *conn) handleText(data []byte) {
@@ -287,7 +290,7 @@ func (c *conn) handleHello(data []byte) (any, func(), error) {
 			Arch:     runtime.GOARCH,
 			Hostname: c.srv.Hostname,
 		},
-		Capabilities: []string{"shell", "claude"},
+		Capabilities: c.srv.capabilities(),
 		Limits: proto.Limits{
 			MaxSessions:     cfg.MaxSessions,
 			ScrollbackBytes: cfg.ScrollbackBytes,
@@ -542,4 +545,52 @@ func Hostname() string {
 		}
 	}
 	return h
+}
+
+func (s *Server) capabilities() []string {
+	caps := []string{"shell", "claude"}
+	if s.Push != nil {
+		caps = append(caps, "push")
+	}
+	return caps
+}
+
+func (c *conn) pushEnabled() error {
+	if c.srv.Push == nil {
+		return proto.Errorf(proto.CodeUnknownType, "push is not enabled on this agent")
+	}
+	return nil
+}
+
+// Push routes are keyed by the connection's principal: each paired device
+// configures its own.
+func (c *conn) handlePushConfigure(data []byte) (any, func(), error) {
+	if err := c.pushEnabled(); err != nil {
+		return nil, nil, err
+	}
+	var req proto.PushConfigureRequest
+	if err := decode(data, &req); err != nil {
+		return nil, nil, err
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, 15*time.Second)
+	defer cancel()
+	if _, err := c.srv.Push.Configure(ctx, c.principal, req.RadixURL, req.PushToken, req.Prefs); err != nil {
+		return nil, nil, err
+	}
+	return c.srv.Push.Status(c.principal), nil, nil
+}
+
+func (c *conn) handlePushStatus([]byte) (any, func(), error) {
+	if err := c.pushEnabled(); err != nil {
+		return nil, nil, err
+	}
+	return c.srv.Push.Status(c.principal), nil, nil
+}
+
+func (c *conn) handlePushRemove([]byte) (any, func(), error) {
+	if err := c.pushEnabled(); err != nil {
+		return nil, nil, err
+	}
+	c.srv.Push.Remove(c.principal)
+	return nil, nil, nil
 }

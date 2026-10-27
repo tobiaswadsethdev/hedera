@@ -4,228 +4,869 @@
   "title": "Hedera agent protocol v1 control messages",
   "description": "Normative schemas for text frames. Top-level entry points: #/$defs/request (client to agent), #/$defs/agentMessage (agent to client), and #/$defs/results/<request type> for the success fields of each response. Unknown fields are allowed everywhere so either side can add fields without a version bump.",
   "$defs": {
-    "timestamp": {"type": "string", "format": "date-time"},
-    "requestId": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
-    "sessionId": {"type": "string", "pattern": "^s_[a-z2-7]{10}$"},
-    "machineId": {"type": "string", "pattern": "^m_[a-z2-7]{16}$"},
-    "bootId": {"type": "string", "pattern": "^b_[a-z2-7]{10}$"},
-    "pairingId": {"type": "string", "pattern": "^p_[a-z2-7]{8}$"},
-    "channel": {"type": "integer", "minimum": 1, "maximum": 4294967295},
-    "offset": {"type": "integer", "minimum": 0},
-    "dimension": {"type": "integer", "minimum": 1, "maximum": 1000},
-    "kind": {"enum": ["shell", "claude"]},
-    "status": {"enum": ["running", "starting", "working", "idle", "needs_input", "failed", "exited"]},
-    "errorCode": {
-      "enum": ["unsupported_version", "unknown_type", "invalid_argument", "not_found", "session_exited", "session_running", "limit_exceeded", "stale", "internal"]
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
     },
-
+    "requestId": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "sessionId": {
+      "type": "string",
+      "pattern": "^s_[a-z2-7]{10}$"
+    },
+    "machineId": {
+      "type": "string",
+      "pattern": "^m_[a-z2-7]{16}$"
+    },
+    "bootId": {
+      "type": "string",
+      "pattern": "^b_[a-z2-7]{10}$"
+    },
+    "pairingId": {
+      "type": "string",
+      "pattern": "^p_[a-z2-7]{8}$"
+    },
+    "channel": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dimension": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "kind": {
+      "enum": [
+        "shell",
+        "claude"
+      ]
+    },
+    "status": {
+      "enum": [
+        "running",
+        "starting",
+        "working",
+        "idle",
+        "needs_input",
+        "failed",
+        "exited"
+      ]
+    },
+    "errorCode": {
+      "enum": [
+        "unsupported_version",
+        "unknown_type",
+        "invalid_argument",
+        "not_found",
+        "session_exited",
+        "session_running",
+        "limit_exceeded",
+        "stale",
+        "unavailable",
+        "internal"
+      ]
+    },
     "size": {
       "type": "object",
-      "required": ["cols", "rows"],
-      "properties": {"cols": {"$ref": "#/$defs/dimension"}, "rows": {"$ref": "#/$defs/dimension"}}
+      "required": [
+        "cols",
+        "rows"
+      ],
+      "properties": {
+        "cols": {
+          "$ref": "#/$defs/dimension"
+        },
+        "rows": {
+          "$ref": "#/$defs/dimension"
+        }
+      }
     },
     "exit": {
       "type": "object",
-      "required": ["code", "signal", "at", "initiated_by"],
+      "required": [
+        "code",
+        "signal",
+        "at",
+        "initiated_by"
+      ],
       "properties": {
-        "code": {"type": ["integer", "null"]},
-        "signal": {"type": ["string", "null"]},
-        "at": {"$ref": "#/$defs/timestamp"},
-        "initiated_by": {"enum": ["client", "agent", "process"]}
+        "code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "signal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "initiated_by": {
+          "enum": [
+            "client",
+            "agent",
+            "process"
+          ]
+        }
       }
     },
     "claudeState": {
       "type": "object",
-      "required": ["status", "session_id", "turn", "needs_input", "last_message_preview", "last_error", "end_reason"],
+      "required": [
+        "status",
+        "session_id",
+        "turn",
+        "needs_input",
+        "last_message_preview",
+        "last_error",
+        "end_reason"
+      ],
       "properties": {
-        "status": {"enum": ["starting", "working", "idle", "needs_input", "failed", "ended"]},
-        "session_id": {"type": ["string", "null"]},
-        "turn": {"type": "integer", "minimum": 0},
+        "status": {
+          "enum": [
+            "starting",
+            "working",
+            "idle",
+            "needs_input",
+            "failed",
+            "ended"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 0
+        },
         "needs_input": {
-          "type": ["object", "null"],
-          "required": ["kind", "message"],
-          "properties": {"kind": {"type": "string"}, "message": {"type": "string"}}
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "kind",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
         },
-        "last_message_preview": {"type": ["string", "null"]},
+        "last_message_preview": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "last_error": {
-          "type": ["object", "null"],
-          "required": ["error"],
-          "properties": {"error": {"type": "string"}, "error_details": {"type": ["string", "null"]}}
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "error"
+          ],
+          "properties": {
+            "error": {
+              "type": "string"
+            },
+            "error_details": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         },
-        "end_reason": {"type": ["string", "null"]}
+        "end_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "session": {
       "type": "object",
-      "required": ["id", "kind", "title", "cwd", "argv", "pid", "created_at", "size", "status", "output_offset", "attached", "claude", "exit"],
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "cwd",
+        "argv",
+        "pid",
+        "created_at",
+        "size",
+        "status",
+        "output_offset",
+        "attached",
+        "claude",
+        "exit"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/sessionId"},
-        "kind": {"$ref": "#/$defs/kind"},
-        "title": {"type": "string", "maxLength": 200},
-        "cwd": {"type": "string"},
-        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "pid": {"type": "integer", "minimum": 0},
-        "created_at": {"$ref": "#/$defs/timestamp"},
-        "size": {"$ref": "#/$defs/size"},
-        "status": {"$ref": "#/$defs/status"},
-        "output_offset": {"$ref": "#/$defs/offset"},
-        "attached": {"type": "integer", "minimum": 0},
-        "claude": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/claudeState"}]},
-        "exit": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/exit"}]}
+        "id": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "size": {
+          "$ref": "#/$defs/size"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "output_offset": {
+          "$ref": "#/$defs/offset"
+        },
+        "attached": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claude": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/claudeState"
+            }
+          ]
+        },
+        "exit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/exit"
+            }
+          ]
+        }
       }
     },
     "error": {
       "type": "object",
-      "required": ["code", "message"],
-      "properties": {"code": {"$ref": "#/$defs/errorCode"}, "message": {"type": "string"}}
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/errorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
     },
-
     "request": {
       "type": "object",
-      "required": ["t", "id"],
-      "properties": {"t": {"type": "string"}, "id": {"$ref": "#/$defs/requestId"}},
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/requestId"
+        }
+      },
       "allOf": [
-        {"if": {"properties": {"t": {"const": "hello"}}}, "then": {"$ref": "#/$defs/requests/hello"}},
-        {"if": {"properties": {"t": {"const": "session.list"}}}, "then": {"$ref": "#/$defs/requests/session.list"}},
-        {"if": {"properties": {"t": {"const": "session.create"}}}, "then": {"$ref": "#/$defs/requests/session.create"}},
-        {"if": {"properties": {"t": {"const": "session.attach"}}}, "then": {"$ref": "#/$defs/requests/session.attach"}},
-        {"if": {"properties": {"t": {"const": "session.detach"}}}, "then": {"$ref": "#/$defs/requests/session.detach"}},
-        {"if": {"properties": {"t": {"const": "session.input"}}}, "then": {"$ref": "#/$defs/requests/session.input"}},
-        {"if": {"properties": {"t": {"const": "session.resize"}}}, "then": {"$ref": "#/$defs/requests/session.resize"}},
-        {"if": {"properties": {"t": {"const": "session.close"}}}, "then": {"$ref": "#/$defs/requests/session.close"}},
-        {"if": {"properties": {"t": {"const": "session.remove"}}}, "then": {"$ref": "#/$defs/requests/session.remove"}},
-        {"if": {"properties": {"t": {"const": "events.subscribe"}}}, "then": {"$ref": "#/$defs/requests/events.subscribe"}},
-        {"if": {"properties": {"t": {"const": "events.unsubscribe"}}}, "then": {"$ref": "#/$defs/requests/events.unsubscribe"}},
-        {"if": {"properties": {"t": {"const": "push.configure"}}}, "then": {"$ref": "#/$defs/requests/push.configure"}}
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "hello"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/hello"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.list"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.list"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.create"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.create"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.attach"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.attach"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.detach"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.detach"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.input"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.input"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.resize"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.resize"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.close"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.close"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.remove"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.remove"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "events.subscribe"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/events.subscribe"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "events.unsubscribe"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/events.unsubscribe"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "push.configure"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/push.configure"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "push.status"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/push.status"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "push.remove"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/push.remove"
+          }
+        }
       ]
     },
     "requests": {
       "hello": {
-        "required": ["protocol", "client"],
+        "required": [
+          "protocol",
+          "client"
+        ],
         "properties": {
           "protocol": {
             "type": "object",
-            "required": ["min", "max"],
-            "properties": {"min": {"type": "integer", "minimum": 1}, "max": {"type": "integer", "minimum": 1}}
+            "required": [
+              "min",
+              "max"
+            ],
+            "properties": {
+              "min": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
           },
           "client": {
             "type": "object",
-            "required": ["name", "version"],
-            "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "platform": {"type": "string"}}
+            "required": [
+              "name",
+              "version"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              }
+            }
           }
         }
       },
       "session.list": {},
       "session.create": {
-        "required": ["kind"],
+        "required": [
+          "kind"
+        ],
         "properties": {
-          "kind": {"$ref": "#/$defs/kind"},
-          "cwd": {"type": ["string", "null"]},
-          "argv": {"type": ["array", "null"], "minItems": 1, "items": {"type": "string"}},
-          "env": {
-            "type": ["object", "null"],
-            "propertyNames": {"not": {"pattern": "^HEDERA_"}},
-            "additionalProperties": {"type": "string"}
+          "kind": {
+            "$ref": "#/$defs/kind"
           },
-          "cols": {"$ref": "#/$defs/dimension"},
-          "rows": {"$ref": "#/$defs/dimension"},
-          "title": {"type": ["string", "null"], "maxLength": 200}
+          "cwd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "argv": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "propertyNames": {
+              "not": {
+                "pattern": "^HEDERA_"
+              }
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "cols": {
+            "$ref": "#/$defs/dimension"
+          },
+          "rows": {
+            "$ref": "#/$defs/dimension"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
         }
       },
       "session.attach": {
-        "required": ["session_id"],
+        "required": [
+          "session_id"
+        ],
         "properties": {
-          "session_id": {"$ref": "#/$defs/sessionId"},
-          "from_offset": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/offset"}]},
-          "cols": {"$ref": "#/$defs/dimension"},
-          "rows": {"$ref": "#/$defs/dimension"}
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "from_offset": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/offset"
+              }
+            ]
+          },
+          "cols": {
+            "$ref": "#/$defs/dimension"
+          },
+          "rows": {
+            "$ref": "#/$defs/dimension"
+          }
         }
       },
       "session.detach": {
-        "required": ["channel"],
-        "properties": {"channel": {"$ref": "#/$defs/channel"}}
+        "required": [
+          "channel"
+        ],
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/channel"
+          }
+        }
       },
       "session.input": {
-        "required": ["session_id", "data"],
+        "required": [
+          "session_id",
+          "data"
+        ],
         "properties": {
-          "session_id": {"$ref": "#/$defs/sessionId"},
-          "data": {"type": "string", "maxLength": 65536},
-          "submit": {"type": "boolean"},
-          "if_turn": {"type": ["integer", "null"], "minimum": 0}
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "submit": {
+            "type": "boolean"
+          },
+          "if_turn": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
         }
       },
       "session.resize": {
-        "required": ["session_id", "cols", "rows"],
+        "required": [
+          "session_id",
+          "cols",
+          "rows"
+        ],
         "properties": {
-          "session_id": {"$ref": "#/$defs/sessionId"},
-          "cols": {"$ref": "#/$defs/dimension"},
-          "rows": {"$ref": "#/$defs/dimension"}
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "cols": {
+            "$ref": "#/$defs/dimension"
+          },
+          "rows": {
+            "$ref": "#/$defs/dimension"
+          }
         }
       },
       "session.close": {
-        "required": ["session_id"],
-        "properties": {"session_id": {"$ref": "#/$defs/sessionId"}, "mode": {"enum": ["hangup", "kill"]}}
+        "required": [
+          "session_id"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "mode": {
+            "enum": [
+              "hangup",
+              "kill"
+            ]
+          }
+        }
       },
       "session.remove": {
-        "required": ["session_id"],
-        "properties": {"session_id": {"$ref": "#/$defs/sessionId"}}
+        "required": [
+          "session_id"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          }
+        }
       },
       "events.subscribe": {
-        "properties": {"since_seq": {"type": ["integer", "null"], "minimum": 0}}
+        "properties": {
+          "since_seq": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        }
       },
       "events.unsubscribe": {},
       "push.configure": {
-        "required": ["radix_url", "push_token"],
+        "required": [
+          "radix_url",
+          "push_token"
+        ],
         "properties": {
-          "radix_url": {"type": "string", "format": "uri"},
-          "push_token": {"type": "string"},
-          "prefs": {"type": "object", "additionalProperties": {"type": "boolean"}}
+          "radix_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "push_token": {
+            "type": "string",
+            "pattern": "^hrp_"
+          },
+          "prefs": {
+            "type": "object",
+            "propertyNames": {
+              "enum": [
+                "shell_exited",
+                "claude_turn_finished",
+                "claude_needs_input",
+                "claude_failed",
+                "claude_ended"
+              ]
+            },
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
         }
-      }
+      },
+      "push.status": {},
+      "push.remove": {}
     },
-
     "results": {
       "hello": {
-        "required": ["protocol", "machine_id", "boot_id", "agent", "capabilities", "limits", "server_time"],
+        "required": [
+          "protocol",
+          "machine_id",
+          "boot_id",
+          "agent",
+          "capabilities",
+          "limits",
+          "server_time"
+        ],
         "properties": {
-          "protocol": {"type": "integer", "minimum": 1},
-          "machine_id": {"$ref": "#/$defs/machineId"},
-          "boot_id": {"$ref": "#/$defs/bootId"},
+          "protocol": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "machine_id": {
+            "$ref": "#/$defs/machineId"
+          },
+          "boot_id": {
+            "$ref": "#/$defs/bootId"
+          },
           "agent": {
             "type": "object",
-            "required": ["version", "os", "arch", "hostname"],
-            "properties": {"version": {"type": "string"}, "os": {"type": "string"}, "arch": {"type": "string"}, "hostname": {"type": "string"}}
-          },
-          "capabilities": {"type": "array", "items": {"type": "string"}},
-          "limits": {
-            "type": "object",
-            "required": ["max_sessions", "scrollback_bytes", "max_frame"],
+            "required": [
+              "version",
+              "os",
+              "arch",
+              "hostname"
+            ],
             "properties": {
-              "max_sessions": {"type": "integer", "minimum": 1},
-              "scrollback_bytes": {"type": "integer", "minimum": 1},
-              "max_frame": {"type": "integer", "minimum": 1}
+              "version": {
+                "type": "string"
+              },
+              "os": {
+                "type": "string"
+              },
+              "arch": {
+                "type": "string"
+              },
+              "hostname": {
+                "type": "string"
+              }
             }
           },
-          "server_time": {"$ref": "#/$defs/timestamp"}
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limits": {
+            "type": "object",
+            "required": [
+              "max_sessions",
+              "scrollback_bytes",
+              "max_frame"
+            ],
+            "properties": {
+              "max_sessions": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "scrollback_bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "max_frame": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "server_time": {
+            "$ref": "#/$defs/timestamp"
+          }
         }
       },
       "session.list": {
-        "required": ["sessions"],
-        "properties": {"sessions": {"type": "array", "items": {"$ref": "#/$defs/session"}}}
+        "required": [
+          "sessions"
+        ],
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/session"
+            }
+          }
+        }
       },
       "session.create": {
-        "required": ["session"],
-        "properties": {"session": {"$ref": "#/$defs/session"}}
+        "required": [
+          "session"
+        ],
+        "properties": {
+          "session": {
+            "$ref": "#/$defs/session"
+          }
+        }
       },
       "session.attach": {
-        "required": ["channel", "session", "replay"],
+        "required": [
+          "channel",
+          "session",
+          "replay"
+        ],
         "properties": {
-          "channel": {"$ref": "#/$defs/channel"},
-          "session": {"$ref": "#/$defs/session"},
+          "channel": {
+            "$ref": "#/$defs/channel"
+          },
+          "session": {
+            "$ref": "#/$defs/session"
+          },
           "replay": {
             "type": "object",
-            "required": ["from", "to", "truncated"],
-            "properties": {"from": {"$ref": "#/$defs/offset"}, "to": {"$ref": "#/$defs/offset"}, "truncated": {"type": "boolean"}}
+            "required": [
+              "from",
+              "to",
+              "truncated"
+            ],
+            "properties": {
+              "from": {
+                "$ref": "#/$defs/offset"
+              },
+              "to": {
+                "$ref": "#/$defs/offset"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },
@@ -235,75 +876,499 @@
       "session.close": {},
       "session.remove": {},
       "events.subscribe": {
-        "required": ["seq", "reset"],
-        "properties": {"seq": {"type": "integer", "minimum": 0}, "reset": {"type": "boolean"}}
+        "required": [
+          "seq",
+          "reset"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reset": {
+            "type": "boolean"
+          }
+        }
       },
       "events.unsubscribe": {},
-      "push.configure": {}
+      "push.configure": {
+        "required": [
+          "configured",
+          "queued"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "radix_url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prefs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "broken": {
+            "type": "string"
+          },
+          "last_success_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "queued": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "push.status": {
+        "required": [
+          "configured",
+          "queued"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "radix_url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prefs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "broken": {
+            "type": "string"
+          },
+          "last_success_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "queued": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "push.remove": {}
     },
-
     "response": {
       "type": "object",
-      "required": ["t", "re", "ok"],
-      "properties": {"t": {"const": "res"}, "re": {"$ref": "#/$defs/requestId"}, "ok": {"type": "boolean"}},
-      "if": {"properties": {"ok": {"const": false}}},
-      "then": {"required": ["error"], "properties": {"error": {"$ref": "#/$defs/error"}}}
+      "required": [
+        "t",
+        "re",
+        "ok"
+      ],
+      "properties": {
+        "t": {
+          "const": "res"
+        },
+        "re": {
+          "$ref": "#/$defs/requestId"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": {
+          "ok": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/$defs/error"
+          }
+        }
+      }
     },
     "event": {
       "type": "object",
-      "required": ["t", "seq", "ts", "type"],
+      "required": [
+        "t",
+        "seq",
+        "ts",
+        "type"
+      ],
       "properties": {
-        "t": {"const": "event"},
-        "seq": {"type": "integer", "minimum": 1},
-        "ts": {"$ref": "#/$defs/timestamp"},
-        "type": {"type": "string"}
+        "t": {
+          "const": "event"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "type": {
+          "type": "string"
+        }
       },
       "allOf": [
-        {"if": {"properties": {"type": {"enum": ["session.created", "session.exited"]}}},
-         "then": {"required": ["session"], "properties": {"session": {"$ref": "#/$defs/session"}}}},
-        {"if": {"properties": {"type": {"const": "session.updated"}}},
-         "then": {"required": ["session", "reason"], "properties": {"session": {"$ref": "#/$defs/session"}, "reason": {"type": "string"}}}},
-        {"if": {"properties": {"type": {"const": "session.resized"}}},
-         "then": {"required": ["session_id", "cols", "rows"], "properties": {"session_id": {"$ref": "#/$defs/sessionId"}, "cols": {"$ref": "#/$defs/dimension"}, "rows": {"$ref": "#/$defs/dimension"}}}},
-        {"if": {"properties": {"type": {"const": "session.removed"}}},
-         "then": {"required": ["session_id"], "properties": {"session_id": {"$ref": "#/$defs/sessionId"}}}},
-        {"if": {"properties": {"type": {"enum": ["claude.turn_finished", "claude.needs_input", "claude.failed", "claude.ended"]}}},
-         "then": {"required": ["session", "turn"], "properties": {"session": {"$ref": "#/$defs/session"}, "turn": {"type": "integer", "minimum": 0}}}},
-        {"if": {"properties": {"type": {"const": "claude.turn_finished"}}},
-         "then": {"properties": {"preview": {"type": "string"}}}},
-        {"if": {"properties": {"type": {"const": "claude.needs_input"}}},
-         "then": {"required": ["kind", "message"], "properties": {"kind": {"type": "string"}, "message": {"type": "string"}}}},
-        {"if": {"properties": {"type": {"const": "claude.failed"}}},
-         "then": {"required": ["error"], "properties": {"error": {"type": "string"}, "error_details": {"type": "string"}}}},
-        {"if": {"properties": {"type": {"const": "claude.ended"}}},
-         "then": {"required": ["reason"], "properties": {"reason": {"type": "string"}}}}
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session.created",
+                  "session.exited"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session"
+            ],
+            "properties": {
+              "session": {
+                "$ref": "#/$defs/session"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "session.updated"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session",
+              "reason"
+            ],
+            "properties": {
+              "session": {
+                "$ref": "#/$defs/session"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "session.resized"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session_id",
+              "cols",
+              "rows"
+            ],
+            "properties": {
+              "session_id": {
+                "$ref": "#/$defs/sessionId"
+              },
+              "cols": {
+                "$ref": "#/$defs/dimension"
+              },
+              "rows": {
+                "$ref": "#/$defs/dimension"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "session.removed"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session_id"
+            ],
+            "properties": {
+              "session_id": {
+                "$ref": "#/$defs/sessionId"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "claude.turn_finished",
+                  "claude.needs_input",
+                  "claude.failed",
+                  "claude.ended"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session",
+              "turn"
+            ],
+            "properties": {
+              "session": {
+                "$ref": "#/$defs/session"
+              },
+              "turn": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "claude.turn_finished"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preview": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "claude.needs_input"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "kind",
+              "message"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "claude.failed"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_details": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "claude.ended"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
       ]
     },
     "lagged": {
       "type": "object",
-      "required": ["t", "channel", "session_id", "offset"],
-      "properties": {"t": {"const": "lagged"}, "channel": {"$ref": "#/$defs/channel"}, "session_id": {"$ref": "#/$defs/sessionId"}, "offset": {"$ref": "#/$defs/offset"}}
+      "required": [
+        "t",
+        "channel",
+        "session_id",
+        "offset"
+      ],
+      "properties": {
+        "t": {
+          "const": "lagged"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "session_id": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "offset": {
+          "$ref": "#/$defs/offset"
+        }
+      }
     },
     "detached": {
       "type": "object",
-      "required": ["t", "channel", "session_id", "reason"],
-      "properties": {"t": {"const": "detached"}, "channel": {"$ref": "#/$defs/channel"}, "session_id": {"$ref": "#/$defs/sessionId"}, "reason": {"enum": ["exited", "removed"]}}
+      "required": [
+        "t",
+        "channel",
+        "session_id",
+        "reason"
+      ],
+      "properties": {
+        "t": {
+          "const": "detached"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "session_id": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "reason": {
+          "enum": [
+            "exited",
+            "removed"
+          ]
+        }
+      }
     },
     "eventsLagged": {
       "type": "object",
-      "required": ["t", "seq"],
-      "properties": {"t": {"const": "events.lagged"}, "seq": {"type": "integer", "minimum": 0}}
+      "required": [
+        "t",
+        "seq"
+      ],
+      "properties": {
+        "t": {
+          "const": "events.lagged"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     },
     "agentMessage": {
       "type": "object",
-      "required": ["t"],
-      "properties": {"t": {"enum": ["res", "event", "lagged", "detached", "events.lagged"]}},
+      "required": [
+        "t"
+      ],
+      "properties": {
+        "t": {
+          "enum": [
+            "res",
+            "event",
+            "lagged",
+            "detached",
+            "events.lagged"
+          ]
+        }
+      },
       "allOf": [
-        {"if": {"properties": {"t": {"const": "res"}}}, "then": {"$ref": "#/$defs/response"}},
-        {"if": {"properties": {"t": {"const": "event"}}}, "then": {"$ref": "#/$defs/event"}},
-        {"if": {"properties": {"t": {"const": "lagged"}}}, "then": {"$ref": "#/$defs/lagged"}},
-        {"if": {"properties": {"t": {"const": "detached"}}}, "then": {"$ref": "#/$defs/detached"}},
-        {"if": {"properties": {"t": {"const": "events.lagged"}}}, "then": {"$ref": "#/$defs/eventsLagged"}}
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "res"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/response"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "event"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "lagged"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/lagged"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "detached"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/detached"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "events.lagged"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/eventsLagged"
+          }
+        }
       ]
     }
   }
