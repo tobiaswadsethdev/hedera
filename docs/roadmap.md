@@ -182,8 +182,8 @@ interactive `hedera attach` in a console window.
 
 - ~~Structured logs with redaction~~ (done: `--log-format json`, credential
   masking). Log rotation is left to launchd/journald.
-- Check peer identity inside the tailnet (Tailscale `whois`), not only the
-  address range.
+- ~~Check peer identity inside the tailnet~~ (done: `allowed_users` /
+  `allowed_tags` in `config.json`, checked with `tailscale whois`).
 - Optional end-to-end encrypted push bodies: a key shared in the pairing QR,
   decrypted on the phone by a Notification Service Extension, so Radix and
   Apple see only ciphertext.

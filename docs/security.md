@@ -13,6 +13,17 @@ on that machine, so the agent treats every network path as hostile.
 - `--dev-loopback` adds a TLS listener on `127.0.0.1` for testing; it cannot
   bind anything but loopback.
 
+### Tailnet identity (optional)
+
+By default any device on your tailnet can reach the listener, though it still
+needs a token. Setting `allowed_users` (tailnet logins such as
+`you@github`) or `allowed_tags` (such as `tag:servers`) in `config.json`
+makes the agent ask `tailscale whois` about every remote peer and refuse
+anyone else, pairing requests included. It fails closed: if Tailscale can't
+identify a peer, or the `tailscale` CLI isn't installed, connections are
+refused (and the agent won't start). Tagged nodes are matched by tag only,
+never by their placeholder owner.
+
 ## Credentials
 
 | Credential | Where it lives | Grants |
@@ -78,7 +89,4 @@ The state directory is mode 0700; `local.token`, `pairings.json`,
 
 ## Known gaps
 
-- Peer identity within the tailnet is not checked yet (any device on your
-  tailnet can try to connect, but still needs a token). Phase 5 may add
-  Tailscale `whois` checks.
 - Restarting the agent ends all sessions, since the agent owns the PTYs.

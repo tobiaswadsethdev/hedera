@@ -128,6 +128,15 @@ when you log on, in your desktop session, and logs to
 `%AppData%\hedera\hedera.log`. `install-hooks` writes exec-form hooks there,
 which run without a shell.
 
+## Configuration
+
+`config.json` in the state directory holds the machine ID and optional
+settings: `port` (7373), `local_port` (7374), `scrollback_bytes`,
+`max_sessions`, `dns_name` (advertised in pairing QR codes), and
+`allowed_users` / `allowed_tags` to admit only some tailnet identities (see
+[docs/security.md](docs/security.md#tailnet-identity-optional)). Restart the
+agent after editing it.
+
 ## State
 
 The agent keeps its state in `~/Library/Application Support/hedera` (macOS),

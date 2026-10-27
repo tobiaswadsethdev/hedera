@@ -54,10 +54,15 @@ type Server struct {
 	// AllowLoopbackPeers lets the remote handler accept loopback peers, for
 	// the loopback TLS listener used in development and tests.
 	AllowLoopbackPeers bool
+	// Allow restricts the remote listener to these tailnet identities, as
+	// reported by Whois. Empty admits any tailnet peer with a valid token.
+	Allow Allowlist
+	Whois Whois
 
 	mu      sync.Mutex
 	conns   map[*conn]struct{}
 	limiter failureLimiter
+	whois   *cachedWhois
 }
 
 func (s *Server) init() {
@@ -86,7 +91,11 @@ func (s *Server) RemoteHandler() http.Handler {
 		s.serveWS(w, r, id)
 	})
 	mux.HandleFunc("POST /v1/pair", s.handlePair)
-	return s.peerCheck(mux, func(a netip.Addr) bool {
+	var h http.Handler = mux
+	if !s.Allow.Empty() {
+		h = s.identityCheck(mux)
+	}
+	return s.peerCheck(h, func(a netip.Addr) bool {
 		return IsTailscale(a) || (s.AllowLoopbackPeers && a.IsLoopback())
 	})
 }
@@ -417,4 +426,39 @@ func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
 		Body:     "Test notification from " + s.Hostname,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"queued": n})
+}
+
+// identityCheck admits only peers whose Tailscale identity is on the
+// allowlist. It fails closed: if Tailscale can't say who a peer is, the
+// request is refused. Loopback peers (the development listener) skip it.
+func (s *Server) identityCheck(next http.Handler) http.Handler {
+	s.mu.Lock()
+	if s.whois == nil {
+		s.whois = newCachedWhois(s.Whois, time.Minute, time.Now)
+	}
+	cache := s.whois
+	s.mu.Unlock()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := peerIP(r)
+		if ip.IsLoopback() && s.AllowLoopbackPeers {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.Whois == nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		id, err := cache.lookup(r.Context(), ip)
+		if err != nil {
+			s.Log.Warn("could not identify tailnet peer; refusing", "remote", r.RemoteAddr, "err", err)
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if !s.Allow.Admits(id) {
+			s.Log.Warn("tailnet peer not on the allowlist", "remote", r.RemoteAddr, "user", id.LoginName, "node", id.Node, "tags", id.Tags)
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
