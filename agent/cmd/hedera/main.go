@@ -29,6 +29,7 @@ func init() {
 		{"tokens", "[list | revoke <pairing-id>]", "list or revoke paired devices", cmdTokens},
 		{"ls", "[--json]", "list sessions", cmdList},
 		{"new", "[--claude] [--cwd DIR] [--title T] [-d] [-- COMMAND ARGS…]", "start a session and attach to it", cmdNew},
+		{"resume", "[<claude-session-id>] [-d | --forget]", "list or resume Claude sessions lost when the agent stopped", cmdResume},
 		{"attach", "<session-id> [--from OFFSET]", "attach this terminal to a session (Ctrl-] detaches)", cmdAttach},
 		{"send", "<session-id> <text> [--enter] [--if-turn N]", "type text into a session, like a notification reply", cmdSend},
 		{"close", "<session-id> [--kill]", "hang up (or kill) a session", cmdClose},

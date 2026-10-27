@@ -216,6 +216,7 @@ func (s *Session) ApplyHook(ev HookEvent) {
 	if emit == nil && claudeStateEqual(before, *st) {
 		return
 	}
+	s.trackClaudeLocked()
 	snap := s.snapshotLocked()
 	if emit == nil {
 		s.publishLocked(proto.Event{Type: proto.EvSessionUpdated, Session: &snap, Reason: "claude"})

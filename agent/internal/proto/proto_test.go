@@ -56,17 +56,21 @@ var requestTypes = map[string]func() any{
 	TPushStatus:        func() any { return &struct{}{} },
 	TPushRemove:        func() any { return &struct{}{} },
 	TPairingUnpair:     func() any { return &struct{}{} },
+	TSessionResumable:  func() any { return &struct{}{} },
+	TSessionResume:     func() any { return &ResumeRequest{} },
+	TSessionForget:     func() any { return &ForgetRequest{} },
 }
 
 var resultTypes = map[string]func() any{
-	THello:           func() any { return &HelloResult{} },
-	TSessionList:     func() any { return &ListResult{} },
-	TSessionCreate:   func() any { return &CreateResult{} },
-	TSessionAttach:   func() any { return &AttachResult{} },
-	TSessionResize:   func() any { return nil },
-	TEventsSubscribe: func() any { return &SubscribeResult{} },
-	TPushConfigure:   func() any { return &PushStatus{} },
-	TPushStatus:      func() any { return &PushStatus{} },
+	THello:            func() any { return &HelloResult{} },
+	TSessionList:      func() any { return &ListResult{} },
+	TSessionCreate:    func() any { return &CreateResult{} },
+	TSessionAttach:    func() any { return &AttachResult{} },
+	TSessionResize:    func() any { return nil },
+	TEventsSubscribe:  func() any { return &SubscribeResult{} },
+	TPushConfigure:    func() any { return &PushStatus{} },
+	TPushStatus:       func() any { return &PushStatus{} },
+	TSessionResumable: func() any { return &ResumableResult{} },
 }
 
 // TestMessageFixtures decodes every golden message into its Go type and

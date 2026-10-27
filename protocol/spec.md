@@ -421,7 +421,33 @@ The response means the signal was sent, not that the process has exited; the
 Fails with `session_running` unless the session has exited. Frees its
 scrollback.
 
-### 4.11 Channel messages
+### 4.11 Resuming Claude sessions after an agent restart
+
+The agent owns its PTYs, so stopping or restarting it ends every session.
+Claude Code keeps conversations on disk, though, so the agent remembers which
+Claude sessions were live when it stopped, and offers them again:
+
+```json
+→ {"t":"session.resumable","id":14}
+← {"t":"res","re":14,"ok":true,"resumable":[
+    {"claude_session_id":"abc-123","cwd":"/Users/t/src/hedera","title":"fix flaky test",
+     "last_seen_at":"2026-10-27T21:00:00.000Z"}]}
+→ {"t":"session.resume","id":15,"claude_session_id":"abc-123","cols":120,"rows":40}
+← {"t":"res","re":15,"ok":true,"session":{ …Session… }}
+→ {"t":"session.forget","id":16,"claude_session_id":"abc-123"}
+← {"t":"res","re":16,"ok":true}
+```
+
+- A session becomes resumable when the agent stops (or crashes) while Claude
+  runs in it: a claude session, or Claude Code started inside a shell.
+  Sessions that end on their own, by `/exit`, or by `session.close` are not.
+- `session.resume` starts a `kind:"claude"` session running
+  `claude --resume <claude_session_id>` in the original directory with the
+  original title, and removes the entry. If the directory is gone it fails
+  with `invalid_argument` and the entry stays.
+- Entries expire after seven days; at most 50 are kept.
+
+### 4.12 Channel messages
 
 **`lagged`**: the client did not read live output fast enough (more than about
 1 MiB queued for the channel). The agent stops the channel. The client

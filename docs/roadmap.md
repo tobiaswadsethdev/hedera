@@ -181,8 +181,8 @@ and confirm path has to be fast.
 - Optional end-to-end encrypted push bodies: a key shared in the pairing QR,
   decrypted on the phone by a Notification Service Extension, so Radix and
   Apple see only ciphertext.
-- Offer `claude --resume <session_id>` for Claude sessions lost to an agent
-  restart, since the agent already records Claude's session ID.
+- ~~Offer `claude --resume` for Claude sessions lost to an agent restart~~
+  (done: `session.resumable` / `session.resume`, `hedera resume`).
 - Agent upgrades that refuse to restart while sessions are alive
   (`install-service` already refuses without `--force`).
 - ~~Revoke a machine from the app~~ (done: `pairing.unpair`).
@@ -190,7 +190,8 @@ and confirm path has to be fast.
 ## Known risks
 
 - **Restarting the agent ends all sessions.** The agent owns the PTYs (no
-  tmux), so upgrades need care; see the resume item above.
+  tmux), so upgrades need care. Claude sessions can be resumed afterwards;
+  plain shells can't.
 - **Replies need Tailscale on the phone.** Without the VPN, a reply fails and
   falls back to "tap to open".
 - **Services start with a bare environment.** Shells and `claude` run through

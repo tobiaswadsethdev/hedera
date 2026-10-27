@@ -167,6 +167,10 @@ func (s *Session) waitLoop(readerDone <-chan struct{}) {
 		sub.finish(EndExited)
 		delete(s.subs, sub)
 	}
+	if s.claude != nil && s.closing != "agent" {
+		// Ended for real, not by the agent stopping: nothing to resume.
+		s.m.resume.untrack(s.id)
+	}
 	ended := s.claudeEndedOnExitLocked()
 	snap := s.snapshotLocked()
 	s.publishLocked(proto.Event{Type: proto.EvSessionExited, Session: &snap})

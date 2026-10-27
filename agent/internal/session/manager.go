@@ -42,6 +42,9 @@ type Config struct {
 	// HookURL is where `hedera hook` posts Claude Code hook events, handed to
 	// processes as HEDERA_HOOK_URL.
 	HookURL string
+	// ResumePath is where Claude sessions are remembered across agent
+	// restarts, so they can be resumed; empty disables it.
+	ResumePath string
 
 	Logger *slog.Logger
 	Now    func() time.Time
@@ -55,6 +58,7 @@ type Manager struct {
 	now func() time.Time
 
 	mu       sync.Mutex
+	resume   *resumeStore
 	sessions map[string]*Session
 	starting int // creates past the limit check that are not in sessions yet
 	closed   bool
@@ -97,11 +101,18 @@ func NewManager(cfg Config) *Manager {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	resume, err := openResumeStore(cfg.ResumePath, cfg.Now)
+	if err != nil {
+		cfg.Logger.Warn("could not load resumable Claude sessions", "path", cfg.ResumePath, "err", err)
+		resume, _ = openResumeStore("", cfg.Now)
+		resume.path = cfg.ResumePath
+	}
 	return &Manager{
 		cfg:      cfg,
 		bus:      NewBus(0, 0, cfg.Now),
 		log:      cfg.Logger,
 		now:      cfg.Now,
+		resume:   resume,
 		sessions: map[string]*Session{},
 	}
 }
