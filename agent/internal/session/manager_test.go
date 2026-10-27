@@ -234,7 +234,7 @@ func TestInputAndSubmit(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.waitFor(t, "got-a:first")
-	if err := s.Submit("second"); err != nil {
+	if err := s.Input("second", true, nil); err != nil {
 		t.Fatal(err)
 	}
 	c.waitFor(t, "got-b:second")
@@ -505,13 +505,33 @@ func TestSweepEvictsExited(t *testing.T) {
 
 func TestClaudeKindStartsInStarting(t *testing.T) {
 	m := newTestManager(t, nil)
-	s, err := m.Create(proto.CreateRequest{Kind: proto.KindClaude, Argv: []string{"/bin/sh", "-c", "read x"}})
+	s, err := m.Create(proto.CreateRequest{Kind: proto.KindClaude, Argv: []string{"/bin/sh", "-c", `read x; echo "x=$x"`}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	snap := s.Snapshot()
 	if snap.Status != proto.StatusStarting || snap.Claude == nil {
 		t.Fatalf("snapshot %+v", snap)
+	}
+	c := collect(mustAttach(t, s, nil))
+	stale, current := 3, 0
+	var pe *proto.Error
+	if err := s.Input("nope", true, &stale); !errors.As(err, &pe) || pe.Code != proto.CodeStale {
+		t.Fatalf("stale input: %v", err)
+	}
+	if err := s.Input("yes", true, &current); err != nil {
+		t.Fatal(err)
+	}
+	c.waitFor(t, "x=yes")
+}
+
+func TestIfTurnRejectedForShell(t *testing.T) {
+	m := newTestManager(t, nil)
+	s := mustCreate(t, m, "/bin/sh", "-c", "read x")
+	turn := 0
+	var pe *proto.Error
+	if err := s.Input("x", false, &turn); !errors.As(err, &pe) || pe.Code != proto.CodeInvalidArgument {
+		t.Fatalf("if_turn on shell: %v", err)
 	}
 }
 

@@ -272,16 +272,27 @@ type Response struct {
 // MarshalResult encodes a success response. result must marshal to a JSON
 // object, or be nil.
 func MarshalResult(re uint64, result any) ([]byte, error) {
-	prefix := `{"t":"res","re":` + strconv.FormatUint(re, 10) + `,"ok":true`
-	if result == nil {
+	return appendObject(`{"t":"res","re":`+strconv.FormatUint(re, 10)+`,"ok":true`, result)
+}
+
+// MarshalRequest encodes a request. params must marshal to a JSON object, or
+// be nil.
+func MarshalRequest(t string, id uint64, params any) ([]byte, error) {
+	tb, _ := json.Marshal(t)
+	prefix := `{"t":` + string(tb) + `,"id":` + strconv.FormatUint(id, 10)
+	return appendObject(prefix, params)
+}
+
+func appendObject(prefix string, v any) ([]byte, error) {
+	if v == nil {
 		return []byte(prefix + "}"), nil
 	}
-	body, err := json.Marshal(result)
+	body, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
 	if len(body) < 2 || body[0] != '{' {
-		return nil, fmt.Errorf("proto: result %T is not a JSON object", result)
+		return nil, fmt.Errorf("proto: %T is not a JSON object", v)
 	}
 	if len(body) == 2 {
 		return []byte(prefix + "}"), nil

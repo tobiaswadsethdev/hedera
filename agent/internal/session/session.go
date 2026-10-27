@@ -245,13 +245,34 @@ func (s *Session) writeLocked(p []byte) error {
 	return nil
 }
 
-// Submit writes text, pauses briefly, then sends Enter as a separate write so
-// TUIs don't treat the carriage return as part of a paste.
-func (s *Session) Submit(text string) error {
+// Input writes text from a session.input request. With submit, it pauses
+// briefly and then sends Enter as a separate write so TUIs don't treat the
+// carriage return as part of a paste. ifTurn (Claude sessions only) makes it
+// fail with CodeStale unless the Claude turn still has that value; the check
+// and the write happen under one lock.
+func (s *Session) Input(text string, submit bool, ifTurn *int) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if ifTurn != nil {
+		s.mu.Lock()
+		c := s.claude
+		turn := 0
+		if c != nil {
+			turn = c.Turn
+		}
+		s.mu.Unlock()
+		if c == nil {
+			return proto.Errorf(proto.CodeInvalidArgument, "if_turn only applies to claude sessions")
+		}
+		if turn != *ifTurn {
+			return proto.Errorf(proto.CodeStale, "the session has moved on to turn %d", turn)
+		}
+	}
 	if err := s.writeLocked([]byte(text)); err != nil {
 		return err
+	}
+	if !submit {
+		return nil
 	}
 	time.Sleep(submitDelay)
 	return s.writeLocked([]byte("\r"))
