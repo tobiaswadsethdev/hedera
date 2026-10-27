@@ -408,6 +408,11 @@ No more OUTPUT frames are sent on that channel after the response.
   `SIGKILL` if it is still alive after 5 seconds.
 - `kill`: `SIGKILL` the process group immediately.
 
+On Windows there are no signals: `hangup` closes the pseudo console, which
+sends `CTRL_CLOSE_EVENT` to every process attached to it, and `kill`
+terminates the session's job object, taking its whole process tree. Exit
+reports then have a `code` and no `signal`.
+
 The response means the signal was sent, not that the process has exited; the
 `session.exited` event reports that.
 

@@ -24,7 +24,7 @@ var commands []command
 
 func init() {
 	commands = []command{
-		{"run", "[--dev-loopback] [-v] [--log-format text|json]", "run the agent in the foreground", cmdRun},
+		{"run", "[--dev-loopback] [-v] [--log-format text|json] [--log-file PATH]", "run the agent in the foreground", cmdRun},
 		{"pair", "[--no-qr]", "show a QR code to pair the Hedera app (or another hedera)", cmdPair},
 		{"tokens", "[list | revoke <pairing-id>]", "list or revoke paired devices", cmdTokens},
 		{"ls", "[--json]", "list sessions", cmdList},

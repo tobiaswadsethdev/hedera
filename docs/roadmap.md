@@ -158,6 +158,12 @@ and confirm path has to be fast.
 
 ### Windows
 
+**Status.** Built and tested on GitHub's Windows runner: ConPTY sessions with
+job objects, `install-service` as a logon task, exec-form hooks, and a CLI
+smoke test against a running agent. Not yet tried on a real desktop: the logon
+task starting at login (and whether a console window flashes), and
+interactive `hedera attach` in a console window.
+
 - **ConPTY** via go-pty is already compiled; it needs real work and tests on a
   Windows runner.
   - No SIGHUP: close by closing the pseudo console, then kill the process

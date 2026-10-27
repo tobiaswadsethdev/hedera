@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-const cmd = "/usr/local/bin/hedera hook"
+const cmdLine = "/usr/local/bin/hedera hook"
+
+var cmd = Invocation{Command: cmdLine}
 
 func mustParse(t *testing.T, s string) *Value {
 	t.Helper()
@@ -103,9 +105,9 @@ func TestInstallIsIdempotentAndUpdatesPath(t *testing.T) {
 	if second := string(Marshal(root)); second != first {
 		t.Fatalf("second install changed the file:\n%s", lineDiff(strings.Split(first, "\n"), strings.Split(second, "\n")))
 	}
-	Install(root, "'/Users/t/My Tools/hedera' hook")
+	Install(root, Invocation{Command: "'/Users/t/My Tools/hedera' hook"})
 	out := string(Marshal(root))
-	if strings.Contains(out, cmd) || strings.Count(out, "My Tools/hedera") != len(Registrations) {
+	if strings.Contains(out, cmdLine) || strings.Count(out, "My Tools/hedera") != len(Registrations) {
 		t.Fatalf("path not updated:\n%s", out)
 	}
 }
@@ -294,5 +296,31 @@ func TestSettingsPath(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", "/tmp/claude-work")
 	if p, _ := SettingsPath(); p != filepath.Join("/tmp/claude-work", "settings.json") {
 		t.Fatal(p)
+	}
+}
+
+func TestExecFormOnWindows(t *testing.T) {
+	inv := InvocationFor(`C:\Users\t\bin\hedera.exe`, "windows")
+	root := NewObject()
+	if err := Install(root, inv); err != nil {
+		t.Fatal(err)
+	}
+	h := root.Obj.Get("hooks").Obj.Get("Stop").Arr[0].Obj.Get("hooks").Arr[0]
+	if c, _ := h.Obj.Get("command").Str(); c != `C:\Users\t\bin\hedera.exe` {
+		t.Fatalf("command %q", c)
+	}
+	if args := h.Obj.Get("args"); args == nil || len(args.Arr) != 1 {
+		t.Fatal("exec form needs args")
+	}
+	if !IsOurs(h) {
+		t.Fatal("exec-form handler not recognised")
+	}
+	// Switching forms replaces rather than duplicates.
+	Install(root, InvocationFor("/usr/local/bin/hedera", "linux"))
+	if got := len(root.Obj.Get("hooks").Obj.Get("Stop").Arr); got != 1 {
+		t.Fatalf("%d Stop groups", got)
+	}
+	if InvocationFor("/usr/local/bin/hedera", "darwin").Args != nil {
+		t.Fatal("Unix should use shell form")
 	}
 }

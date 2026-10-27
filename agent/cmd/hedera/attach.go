@@ -50,6 +50,7 @@ func attachLoop(c *client.Client, id string, from *uint64) error {
 			return err
 		}
 		defer term.Restore(inFd, old)
+		defer enableVTOutput(os.Stdout.Fd())()
 	}
 	if res.Replay.Truncated {
 		os.Stdout.Write([]byte("\x1bc"))
