@@ -9,7 +9,8 @@ Control terminals and Claude Code sessions on your computers from an iPhone.
 | Hedera app | `ios/` (Phase 3) | SwiftUI app with SwiftTerm terminals |
 | Protocol | [`protocol/`](protocol) | The contract: [spec](protocol/spec.md), JSON Schema, golden fixtures |
 
-Security notes are in [docs/security.md](docs/security.md).
+Security notes are in [docs/security.md](docs/security.md); the plan for the
+remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Status
 
