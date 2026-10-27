@@ -1,0 +1,5 @@
+node_modules/
+/agent/hedera
+/agent/dist/
+*.test
+.DS_Store

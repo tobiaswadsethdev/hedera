@@ -1,0 +1,13 @@
+{
+  "name": "hedera-protocol",
+  "private": true,
+  "description": "Validates the golden fixtures against the protocol JSON Schema.",
+  "type": "module",
+  "scripts": {
+    "test": "node validate.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
+  }
+}
