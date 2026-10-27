@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -58,7 +59,7 @@ func TestRedeemAndAuthenticate(t *testing.T) {
 	if strings.Contains(string(raw), token) || strings.Contains(string(raw), code) {
 		t.Fatal("secret written to disk")
 	}
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(path); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", fi.Mode())
 	}
 

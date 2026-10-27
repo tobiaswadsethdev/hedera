@@ -498,7 +498,7 @@ func TestEvents(t *testing.T) {
 	if err := c.Call(ctx(t), proto.TEventsSubscribe, proto.SubscribeRequest{}, &sub); err != nil {
 		t.Fatal(err)
 	}
-	s := create(t, c, "/bin/true")
+	s := create(t, c, "true")
 	var got []proto.Event
 	for len(got) < 2 {
 		m := next(t, c)
@@ -693,9 +693,9 @@ func TestTailnetListenerNeverBindsOtherAddresses(t *testing.T) {
 }
 
 func TestLoopbackListenersRefuseOtherAddresses(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	for _, addr := range []string{"0.0.0.0:0", "[::]:0", "192.168.1.1:0", ":0"} {
-		if err := ServeLocal(context.Background(), addr, http.NotFoundHandler(), log); err == nil {
+		if l, err := ListenLoopback(addr); err == nil {
+			l.Close()
 			t.Errorf("%s accepted", addr)
 		}
 	}

@@ -164,6 +164,7 @@ func (s *Session) waitLoop(readerDone <-chan struct{}) {
 	s.status = proto.StatusExited
 	for sub := range s.subs {
 		sub.finish(EndExited)
+		delete(s.subs, sub)
 	}
 	snap := s.snapshotLocked()
 	s.publishLocked(proto.Event{Type: proto.EvSessionExited, Session: &snap})

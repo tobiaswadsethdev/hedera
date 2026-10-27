@@ -165,29 +165,19 @@ func (t *TailnetListener) refresh() {
 	t.warned = len(t.listeners) == 0
 }
 
-// ServeLoopbackTLS serves on a loopback address only. It exists so the remote
-// code path (pairing, TLS pinning) can be exercised on one machine without
+// ListenLoopback listens on a loopback address and refuses anything else.
+// The local API uses it, and so does the loopback TLS listener that lets the
+// remote code path (pairing, TLS pinning) run on one machine without
 // Tailscale.
-func ServeLoopbackTLS(ctx context.Context, addr string, cfg *tls.Config, h http.Handler, log *slog.Logger) error {
+func ListenLoopback(addr string) (net.Listener, error) {
 	if err := requireLoopback(addr); err != nil {
-		return err
+		return nil, err
 	}
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	return serveUntil(ctx, tls.NewListener(l, cfg), h, log)
+	return net.Listen("tcp", addr)
 }
 
-// ServeLocal serves the local API on a loopback address.
-func ServeLocal(ctx context.Context, addr string, h http.Handler, log *slog.Logger) error {
-	if err := requireLoopback(addr); err != nil {
-		return err
-	}
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
+// Serve serves h on l until ctx is done.
+func Serve(ctx context.Context, l net.Listener, h http.Handler, log *slog.Logger) error {
 	return serveUntil(ctx, l, h, log)
 }
 

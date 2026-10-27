@@ -132,12 +132,17 @@ func (c *collector) waitEnd(t *testing.T) *End {
 func TestCreateRunsAndReportsExit(t *testing.T) {
 	m := newTestManager(t, nil)
 	sub, _, _, _ := m.Bus().Subscribe(nil)
-	s := mustCreate(t, m, "/bin/sh", "-c", "echo hello; exit 3")
+	s := mustCreate(t, m, "/bin/sh", "-c", "read x; echo hello; exit 3")
+	live := collect(mustAttach(t, s, nil))
+	s.Write([]byte("\r"))
 	snap := waitExit(t, s)
+	if end := live.waitEnd(t); end.Reason != EndExited {
+		t.Fatalf("live subscriber end %+v", end)
+	}
 	if snap.Status != proto.StatusExited || snap.Exit == nil || snap.Exit.Code == nil || *snap.Exit.Code != 3 {
 		t.Fatalf("exit = %+v", snap.Exit)
 	}
-	if snap.Exit.InitiatedBy != "process" || snap.Exit.Signal != nil {
+	if snap.Exit.InitiatedBy != "process" || snap.Exit.Signal != nil || snap.Attached != 0 {
 		t.Fatalf("exit = %+v", snap.Exit)
 	}
 	c := collect(mustAttach(t, s, nil))
@@ -145,7 +150,7 @@ func TestCreateRunsAndReportsExit(t *testing.T) {
 	if !bytes.Contains(c.data, []byte("hello")) {
 		t.Fatalf("output %q", c.data)
 	}
-	if got := eventTypes(sub, 2); got != "session.created,session.exited" {
+	if got := eventTypes(sub, 3); got != "session.created,session.updated,session.exited" {
 		t.Fatalf("events %s", got)
 	}
 }
@@ -463,7 +468,7 @@ func TestRemove(t *testing.T) {
 func TestMaxSessions(t *testing.T) {
 	m := newTestManager(t, func(c *Config) { c.MaxSessions = 1 })
 	s := mustCreate(t, m, "/bin/sh", "-c", "read x")
-	_, err := m.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"/bin/true"}})
+	_, err := m.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"true"}})
 	var pe *proto.Error
 	if !errors.As(err, &pe) || pe.Code != proto.CodeLimitExceeded {
 		t.Fatalf("over limit: %v", err)
@@ -471,7 +476,7 @@ func TestMaxSessions(t *testing.T) {
 	s.Write([]byte("\r"))
 	waitExit(t, s)
 	// Exited sessions don't count against the running limit.
-	waitExit(t, mustCreate(t, m, "/bin/true"))
+	waitExit(t, mustCreate(t, m, "true"))
 }
 
 func TestSweepEvictsExited(t *testing.T) {
@@ -481,7 +486,7 @@ func TestSweepEvictsExited(t *testing.T) {
 	m := newTestManager(t, func(c *Config) { c.MaxExited = 2; c.ExitedTTL = time.Hour; c.Now = clock })
 	var all []*Session
 	for i := 0; i < 3; i++ {
-		s := mustCreate(t, m, "/bin/true")
+		s := mustCreate(t, m, "true")
 		waitExit(t, s)
 		all = append(all, s)
 		mu.Lock()
@@ -550,7 +555,7 @@ func TestShutdownHangsUpEverything(t *testing.T) {
 	if ea.InitiatedBy != "agent" {
 		t.Fatalf("initiated_by %s", ea.InitiatedBy)
 	}
-	if _, err := m.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"/bin/true"}}); err == nil {
+	if _, err := m.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"true"}}); err == nil {
 		t.Fatal("create after shutdown succeeded")
 	}
 }
