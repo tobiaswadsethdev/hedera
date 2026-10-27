@@ -37,7 +37,7 @@ type Session struct {
 	status   string
 	exit     *proto.Exit
 	exitTime time.Time
-	claude   *proto.ClaudeState // non-nil for kind claude
+	claude   *claudeTracker // kind claude, or once a hook arrives
 	subs     map[*Subscriber]struct{}
 	closing  string // who asked it to close: "client", "agent" or ""
 
@@ -68,7 +68,7 @@ func (s *Session) snapshotLocked() proto.Session {
 	}
 	var claude *proto.ClaudeState
 	if s.claude != nil {
-		c := *s.claude
+		c := s.claude.state
 		claude = &c
 	}
 	return proto.Session{
@@ -166,8 +166,13 @@ func (s *Session) waitLoop(readerDone <-chan struct{}) {
 		sub.finish(EndExited)
 		delete(s.subs, sub)
 	}
+	ended := s.claudeEndedOnExitLocked()
 	snap := s.snapshotLocked()
 	s.publishLocked(proto.Event{Type: proto.EvSessionExited, Session: &snap})
+	if ended != nil {
+		ended.Session = &snap
+		s.publishLocked(*ended)
+	}
 	s.mu.Unlock()
 
 	s.log.Info("session exited", "session", s.id, "code", st.Code, "signal", st.Signal)
@@ -259,7 +264,7 @@ func (s *Session) Input(text string, submit bool, ifTurn *int) error {
 		c := s.claude
 		turn := 0
 		if c != nil {
-			turn = c.Turn
+			turn = c.state.Turn
 		}
 		s.mu.Unlock()
 		if c == nil {

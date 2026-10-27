@@ -39,6 +39,11 @@ const (
 	EvSessionResized = "session.resized"
 	EvSessionExited  = "session.exited"
 	EvSessionRemoved = "session.removed"
+
+	EvClaudeTurnFinished = "claude.turn_finished"
+	EvClaudeNeedsInput   = "claude.needs_input"
+	EvClaudeFailed       = "claude.failed"
+	EvClaudeEnded        = "claude.ended"
 )
 
 // Session kinds and statuses.
@@ -53,6 +58,10 @@ const (
 	StatusNeedsInput = "needs_input"
 	StatusFailed     = "failed"
 	StatusExited     = "exited"
+
+	// ClaudeEnded is a Claude state status only: Claude Code has exited but
+	// the session's process (e.g. the shell it ran in) may still be alive.
+	ClaudeEnded = "ended"
 )
 
 // Close codes.
@@ -132,11 +141,13 @@ type ClaudeError struct {
 }
 
 type ClaudeState struct {
+	Status             string       `json:"status"`
 	SessionID          *string      `json:"session_id"`
 	Turn               int          `json:"turn"`
 	NeedsInput         *NeedsInput  `json:"needs_input"`
 	LastMessagePreview *string      `json:"last_message_preview"`
 	LastError          *ClaudeError `json:"last_error"`
+	EndReason          *string      `json:"end_reason"`
 }
 
 type Session struct {
@@ -239,6 +250,14 @@ type Event struct {
 	Reason    string   `json:"reason,omitempty"`
 	Cols      int      `json:"cols,omitempty"`
 	Rows      int      `json:"rows,omitempty"`
+
+	// claude.* events
+	Turn         *int    `json:"turn,omitempty"`
+	Preview      *string `json:"preview,omitempty"`
+	Kind         string  `json:"kind,omitempty"`
+	Message      string  `json:"message,omitempty"`
+	Error        string  `json:"error,omitempty"`
+	ErrorDetails *string `json:"error_details,omitempty"`
 }
 
 type Lagged struct {

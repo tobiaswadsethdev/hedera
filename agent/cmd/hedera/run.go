@@ -72,6 +72,7 @@ func cmdRun(args []string) error {
 		MachineID:       cfg.MachineID,
 		ScrollbackBytes: cfg.ScrollbackBytes,
 		MaxSessions:     cfg.MaxSessions,
+		HookURL:         "http://" + localAddr + "/v1/hook",
 		Logger:          log,
 	})
 	tlsCfg := tlsutil.ServerConfig(cert)

@@ -5,8 +5,8 @@ Hedera iOS app and the `hedera` CLI). The JSON Schemas in `schemas/` and the
 golden fixtures in `fixtures/` are normative; if this text and a schema
 disagree, the schema wins and this text is a bug.
 
-Sections marked **(Phase 2)** or **(Phase 4)** describe messages that are
-specified now but not yet implemented by the agent. An agent advertises what it
+Sections marked **(Phase 4)** describe messages that are specified now but not
+yet implemented by the agent. An agent advertises what it
 implements through `capabilities` in the handshake.
 
 ## 1. Transport
@@ -156,7 +156,7 @@ Unknown fields must be ignored by both sides. Unknown request types get
 | `session_exited` | the session's process has exited |
 | `session_running` | the operation needs an exited session |
 | `limit_exceeded` | e.g. too many sessions |
-| `stale` | an `if_turn` precondition failed (Phase 2) |
+| `stale` | an `if_turn` precondition failed |
 | `internal` | anything else; the message is safe to show |
 
 ### 2.4 Close codes
@@ -202,7 +202,7 @@ Capabilities defined so far:
 | Capability | Meaning |
 |---|---|
 | `shell` | shell sessions (always present) |
-| `claude` | Claude Code hook integration (Phase 2) |
+| `claude` | Claude Code hook integration (section 6) |
 | `push` | `push.configure` (Phase 4) |
 
 ## 4. Sessions
@@ -234,7 +234,7 @@ Capabilities defined so far:
 | `status` | see 4.2 |
 | `output_offset` | total bytes of output so far (the next byte's offset) |
 | `attached` | number of channels attached across all connections |
-| `claude` | Claude state object for `kind:"claude"` (Phase 2), else `null` |
+| `claude` | Claude state (section 6). Always set for `kind:"claude"`; set for a shell once Claude Code runs inside it; otherwise `null` |
 | `exit` | `null` while running; afterwards `{"code":0,"signal":null,"at":"…","initiated_by":"process"}` |
 
 `exit.code` is the exit status, or `null` if the process was killed by a
@@ -253,12 +253,16 @@ claude:  starting ─► working ⇄ idle | needs_input | failed ─► exited
 | Status | Meaning |
 |---|---|
 | `running` | shell process alive |
-| `starting` | `claude` spawned, no `SessionStart` hook yet |
+| `starting` | `claude` spawned, no `SessionStart` hook yet (also: hooks not installed, or the folder's trust dialog not yet accepted) |
 | `working` | a prompt was submitted and Claude is working on it |
 | `idle` | the turn finished; Claude waits for the next prompt |
 | `needs_input` | Claude is blocked on a permission prompt or question |
 | `failed` | the last turn ended with an API error; the process is still alive |
 | `exited` | the process has exited; output stays readable until removed |
+
+For `kind:"claude"` the session status mirrors `claude.status`. A shell stays
+`running` even while Claude Code runs inside it; its `claude` object carries the
+Claude status.
 
 Exited sessions are kept (with their scrollback) until `session.remove`, until
 they have been exited for 24 hours, or until more than 32 exited sessions exist
@@ -298,9 +302,15 @@ login, even when the agent runs under launchd or systemd. Every process gets:
 |---|---|
 | `HEDERA_PTY_ID` | the session ID |
 | `HEDERA_MACHINE_ID` | the machine ID |
-| `HEDERA_HOOK_TOKEN` | a random secret for this session only, used by hooks (Phase 2) |
+| `HEDERA_HOOK_TOKEN` | a random secret for this session only, used by hooks |
+| `HEDERA_HOOK_URL` | where `hedera hook` posts hook events (`http://127.0.0.1:7374/v1/hook`) |
 | `TERM` | `xterm-256color` |
 | `COLORTERM` | `truecolor` |
+
+Inherited copies of these variables are replaced, and Claude Code's
+"running inside Claude Code" markers (`CLAUDECODE`, `CLAUDE_CODE_CHILD_SESSION`,
+`CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_PID`) are removed,
+so a session looks like a fresh terminal even if the agent was started from one.
 
 The new session is also announced as a `session.created` event.
 
@@ -347,8 +357,9 @@ notification reply uses:
 - `submit: true`: after writing `data` the agent waits about 50 ms and writes a
   carriage return (`\r`) separately, so full-screen TUIs treat it as Enter
   rather than part of a paste.
-- `if_turn` (Phase 2): reject with `stale` unless the Claude session's `turn`
-  still equals this value.
+- `if_turn`: reject with `stale` unless the session's `claude.turn` still
+  equals this value (`invalid_argument` if the session has no Claude state).
+  A notification reply passes the `turn` from the event it answers.
 
 Input from different connections to one session is serialized; a `submit`
 sequence is never interleaved with other input.
@@ -456,28 +467,74 @@ where `seq` is the last event delivered; the client subscribes again with
 | Type | Fields |
 |---|---|
 | `session.created` | `session` |
-| `session.updated` | `session`, `reason` (`attached`, `detached`, `status`, `title`) |
+| `session.updated` | `session`, `reason` (`attached`, `detached`, `claude`) |
 | `session.resized` | `session_id`, `cols`, `rows` |
 | `session.exited` | `session` (with `exit` set) |
 | `session.removed` | `session_id` |
-| `claude.turn_finished` (Phase 2) | `session`, `turn`, `preview` |
-| `claude.needs_input` (Phase 2) | `session`, `turn`, `kind`, `message` |
-| `claude.failed` (Phase 2) | `session`, `turn`, `error`, `error_details` |
-| `claude.ended` (Phase 2) | `session`, `reason` |
+| `claude.turn_finished` | `session`, `turn`, `preview` (may be absent) |
+| `claude.needs_input` | `session`, `turn`, `kind`, `message` |
+| `claude.failed` | `session`, `turn`, `error`, `error_details` (may be absent) |
+| `claude.ended` | `session`, `turn`, `reason` |
 
-## 6. Claude state (Phase 2)
+Every event that carries `session` holds a full snapshot taken when the event
+happened; clients replace their copy with it. A Claude state change is
+published either as one `claude.*` event or, when it is not notification
+worthy, as `session.updated` with reason `claude`, never both.
 
-For `kind:"claude"` sessions, `claude` is:
+## 6. Claude state
+
+Claude Code reports its state through hooks. `hedera install-hooks` registers
+`hedera hook` for the events below; the hook forwards the payload to
+`/v1/hook` (section 8) with the session's `HEDERA_HOOK_TOKEN`.
 
 ```json
-{"session_id":"abc123","turn":7,
- "needs_input":{"kind":"permission_prompt","message":"Claude needs your permission"},
+{"status":"needs_input","session_id":"abc123","turn":7,
+ "needs_input":{"kind":"permission_prompt","message":"Claude needs your permission to use Bash"},
  "last_message_preview":"I've updated the tests…",
- "last_error":null}
+ "last_error":null,
+ "end_reason":null}
 ```
 
-`turn` increases by one on every `UserPromptSubmit` hook. It is what `if_turn`
-compares against, so a stale lock-screen reply never lands in a later prompt.
+| Field | Meaning |
+|---|---|
+| `status` | `starting`, `working`, `idle`, `needs_input`, `failed`, or `ended` (Claude Code exited; the process it ran in may live on) |
+| `session_id` | Claude Code's own session ID, once known |
+| `turn` | increases by one on every prompt; never resets for a PTY, so a stale `if_turn` can never match again |
+| `needs_input` | what Claude is waiting for, while `status` is `needs_input` |
+| `last_message_preview` | the last turn's final message, whitespace collapsed, at most 280 characters |
+| `last_error` | `{error, error_details}` from the last failed turn, cleared by the next prompt |
+| `end_reason` | from `SessionEnd` (`prompt_input_exit`, `logout`, `other`), or `exited` if Claude Code ended without one |
+
+### 6.1 Transitions
+
+| Hook | Effect | Event |
+|---|---|---|
+| `SessionStart` | record `session_id`; `idle` (except `source:"compact"`, which changes nothing) | `session.updated` |
+| `UserPromptSubmit` | `turn += 1`; `working`; clear `needs_input` and `last_error` | `session.updated` |
+| `PermissionRequest` | `needs_input` (`kind:"permission_prompt"`) | `session.updated` only |
+| `Notification` `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog`, `agent_needs_input` | `needs_input` | `claude.needs_input`, once per waiting episode |
+| `Notification` `elicitation_complete`, `elicitation_response` | `needs_input` → `working` | `session.updated` |
+| `Notification` `idle_prompt` | `idle`, only if no `Stop` was seen for this turn | `claude.turn_finished` in that case |
+| `PostToolUse`, `PostToolUseFailure` | `needs_input` → `working` (the prompt was answered) | `session.updated` |
+| `Stop` | `idle`; update `last_message_preview` | `claude.turn_finished` |
+| `StopFailure` | `failed`; set `last_error` | `claude.failed` |
+| `SessionEnd` `clear`, `resume` | nothing yet; the next `SessionStart` rebinds | — |
+| `SessionEnd` other reasons | `ended`; set `end_reason` | shell sessions: `claude.ended`; claude sessions: see below |
+| process exit | `ended` (`end_reason:"exited"` if not set) | claude sessions: `claude.ended`, right after `session.exited` |
+
+Notes:
+
+- `PermissionRequest` fires as soon as Claude asks, so the status is accurate
+  at once. Claude Code sends the `permission_prompt` notification only after
+  the prompt has waited about six seconds, so someone at the keyboard who
+  answers quickly causes no push.
+- For `kind:"claude"`, `claude.ended` waits for the process to exit, so there
+  is a single notification per session.
+- Hooks carrying a different Claude `session_id` than the one bound to the PTY
+  are ignored (e.g. a `claude -p` run by a tool inside the session), except a
+  `SessionStart` after `SessionEnd` `clear`/`resume`, after `ended`, or with
+  `source` `clear`, `resume` or `fork`, which rebinds the PTY to the new ID.
+- Hooks after the process exited, and unknown hook events, are ignored.
 
 ## 7. Push (Phase 4)
 
@@ -501,7 +558,12 @@ token, except `/v1/hook`. The `hedera` CLI uses them; the app never does.
 | `GET /v1/local/pair-codes/{code_id}/wait` | long-poll (≤ 30 s): `{status:"pending"|"completed"|"expired", pairing_id?, device_name?}` |
 | `GET /v1/local/pairings` | `{pairings:[{id, device_name, created_at, last_seen_at}]}` |
 | `DELETE /v1/local/pairings/{id}` | revoke; closes that pairing's connections with `4003` |
-| `POST /v1/hook` (Phase 2) | Claude Code hook events; authenticated with `HEDERA_HOOK_TOKEN` |
+| `POST /v1/hook` | Claude Code hook events (see below) |
+
+`POST /v1/hook` takes the hook's JSON payload unchanged as the body (at most
+1 MiB), with `Authorization: Bearer <HEDERA_HOOK_TOKEN>` and
+`X-Hedera-Session: <HEDERA_PTY_ID>`. A token that is not that session's gets
+401, whether or not the session exists. Success is 204.
 
 ## 9. Versioning rules
 

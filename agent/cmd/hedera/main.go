@@ -30,12 +30,14 @@ func init() {
 		{"ls", "[--json]", "list sessions", cmdList},
 		{"new", "[--claude] [--cwd DIR] [--title T] [-d] [-- COMMAND ARGS…]", "start a session and attach to it", cmdNew},
 		{"attach", "<session-id> [--from OFFSET]", "attach this terminal to a session (Ctrl-] detaches)", cmdAttach},
+		{"send", "<session-id> <text> [--enter] [--if-turn N]", "type text into a session, like a notification reply", cmdSend},
 		{"close", "<session-id> [--kill]", "hang up (or kill) a session", cmdClose},
 		{"rm", "<session-id>", "remove an exited session and its scrollback", cmdRemove},
 		{"events", "[--since SEQ]", "print the event stream as JSON lines", cmdEvents},
 		{"remote", "add <hedera://pair…> [--name N] | ls | rm <name>", "pair this CLI with another machine's agent", cmdRemote},
 		{"install-service", "[--uninstall] [--print] [--force]", "run hedera at login (launchd or systemd --user)", cmdInstallService},
-		{"install-hooks", "", "install Claude Code hooks (Phase 2)", cmdInstallHooks},
+		{"install-hooks", "[--dry-run] [--uninstall] [--settings PATH]", "add hedera's hooks to Claude Code's settings.json", cmdInstallHooks},
+		{"hook", "", "Claude Code hook handler (run by Claude Code, not by hand)", cmdHook},
 		{"version", "", "print the version", func([]string) error {
 			fmt.Printf("hedera %s (protocol %d)\n", version, proto.Version)
 			return nil
@@ -58,6 +60,11 @@ func main() {
 		os.Exit(2)
 	}
 	name := os.Args[1]
+	if name == "hook" {
+		// Hook handlers must exit 0 and stay silent whatever happens.
+		cmdHook(os.Args[2:])
+		os.Exit(0)
+	}
 	if name == "-h" || name == "--help" || name == "help" {
 		usage()
 		return

@@ -700,3 +700,61 @@ func TestLoopbackListenersRefuseOtherAddresses(t *testing.T) {
 		}
 	}
 }
+
+func postHook(t *testing.T, h *harness, sessionID, token, body string) int {
+	t.Helper()
+	req, _ := http.NewRequest("POST", h.local.URL+"/v1/hook", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set(HookSessionHeader, sessionID)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestHookEndpoint(t *testing.T) {
+	h := newHarness(t, nil)
+	s, err := h.mgr.Create(proto.CreateRequest{Kind: proto.KindClaude, Argv: []string{"/bin/sh", "-c", "read x"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := h.mgr.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"/bin/sh", "-c", "read x"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := `{"hook_event_name":"SessionStart","session_id":"abc","source":"startup"}`
+	cases := []struct {
+		name, id, token, body string
+		status                int
+	}{
+		{"no token", s.ID(), "", start, http.StatusUnauthorized},
+		{"wrong token", s.ID(), "hht_wrong", start, http.StatusUnauthorized},
+		{"another session's token", s.ID(), other.HookToken(), start, http.StatusUnauthorized},
+		{"local admin token", s.ID(), h.localTok, start, http.StatusUnauthorized},
+		{"unknown session", "s_aaaaaaaaaa", s.HookToken(), start, http.StatusUnauthorized},
+		{"bad json", s.ID(), s.HookToken(), "{", http.StatusBadRequest},
+		{"no event name", s.ID(), s.HookToken(), `{"session_id":"abc"}`, http.StatusBadRequest},
+		{"ok", s.ID(), s.HookToken(), start, http.StatusNoContent},
+	}
+	for _, c := range cases {
+		if got := postHook(t, h, c.id, c.token, c.body); got != c.status {
+			t.Errorf("%s: status %d, want %d", c.name, got, c.status)
+		}
+	}
+	if snap := s.Snapshot(); snap.Status != proto.StatusIdle || *snap.Claude.SessionID != "abc" {
+		t.Fatalf("hook not applied: %s %+v", snap.Status, snap.Claude)
+	}
+	if other.Snapshot().Claude != nil {
+		t.Fatal("other session affected")
+	}
+}
+
+func TestHelloAdvertisesClaude(t *testing.T) {
+	h := newHarness(t, nil)
+	c := h.dialLocal(t)
+	if strings.Join(c.Hello.Capabilities, ",") != "shell,claude" {
+		t.Fatalf("capabilities %v", c.Hello.Capabilities)
+	}
+}

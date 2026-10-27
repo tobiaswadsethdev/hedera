@@ -1,12 +1,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/tobiaswadsethdev/hedera/agent/internal/hooks"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/service"
 )
@@ -19,15 +20,9 @@ func cmdInstallService(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	exe, err := os.Executable()
+	exe, err := stableExecutable()
 	if err != nil {
 		return err
-	}
-	if exe, err = filepath.EvalSymlinks(exe); err != nil {
-		return err
-	}
-	if strings.HasPrefix(exe, os.TempDir()) || strings.Contains(exe, "go-build") {
-		return fmt.Errorf("%s looks like a temporary build; install the binary somewhere permanent first (e.g. go install, or copy it to ~/.local/bin)", exe)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -87,6 +82,83 @@ func runningSessions() int {
 	return n
 }
 
-func cmdInstallHooks([]string) error {
-	return errors.New("Claude Code hook integration arrives in Phase 2")
+// stableExecutable is this binary's resolved path, refusing temporary
+// `go run` builds that would vanish and leave services or hooks dangling.
+func stableExecutable() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	if exe, err = filepath.EvalSymlinks(exe); err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(exe, os.TempDir()) || strings.Contains(exe, "go-build") {
+		return "", fmt.Errorf("%s looks like a temporary build; install the binary somewhere permanent first (e.g. go install, or copy it to ~/.local/bin)", exe)
+	}
+	return exe, nil
+}
+
+func cmdInstallHooks(args []string) error {
+	fs := newFlags("install-hooks", usageFor("install-hooks"))
+	dryRun := fs.Bool("dry-run", false, "show the change without writing it")
+	uninstall := fs.Bool("uninstall", false, "remove hedera's hooks")
+	settings := fs.String("settings", "", "settings file to edit (default: $CLAUDE_CONFIG_DIR/settings.json or ~/.claude/settings.json)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	path := *settings
+	if path == "" {
+		var err error
+		if path, err = hooks.SettingsPath(); err != nil {
+			return err
+		}
+	}
+	edit := hooks.Uninstall
+	if !*uninstall {
+		exe, err := stableExecutable()
+		if err != nil {
+			return err
+		}
+		cmd := hooks.Command(exe)
+		edit = func(v *hooks.Value) error { return hooks.Install(v, cmd) }
+	}
+	plan, err := hooks.Prepare(path, edit)
+	if err != nil {
+		return err
+	}
+	if !plan.Changed() {
+		if *uninstall {
+			fmt.Printf("no hedera hooks in %s\n", path)
+		} else {
+			fmt.Printf("hooks already up to date in %s\n", path)
+		}
+		return warnDisabled(plan)
+	}
+	if *dryRun {
+		fmt.Printf("would change %s (formatting normalized to 2-space indentation):\n\n%s", path, plan.Diff())
+		return warnDisabled(plan)
+	}
+	backup, err := plan.Apply(time.Now())
+	if err != nil {
+		return err
+	}
+	if backup != "" {
+		fmt.Printf("backed up the previous file to %s\n", backup)
+	}
+	if *uninstall {
+		fmt.Printf("removed hedera's hooks from %s\n", path)
+		return nil
+	}
+	fmt.Printf("installed hedera's hooks in %s\n", path)
+	fmt.Println("Claude Code sessions started inside hedera now report their state.")
+	fmt.Println("Already-running Claude Code sessions may need a restart to pick the hooks up.")
+	fmt.Println("Note: Claude Code holds hooks back in a folder until you accept its trust dialog.")
+	return warnDisabled(plan)
+}
+
+func warnDisabled(p *hooks.Plan) error {
+	if p.Disabled {
+		fmt.Fprintln(os.Stderr, "warning: disableAllHooks is set in this file, so Claude Code runs no hooks at all")
+	}
+	return nil
 }

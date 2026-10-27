@@ -20,7 +20,7 @@ on that machine, so the agent treats every network path as hostile.
 | Pairing token (`hdt_…`) | client Keychain / `remotes.json`; agent stores SHA-256 only | full remote API |
 | Pairing code | QR code, 5-minute single use | one `POST /v1/pair` |
 | Local admin token (`hlt_…`) | `local.token`, mode 0600 | local API: sessions, pairing, revocation |
-| Hook token (`hht_…`, Phase 2) | env of one session | posting hook events for that session |
+| Hook token (`hht_…`) | env of one session's processes | posting hook events for that session only |
 | Push token (Phase 4) | agent | sending notifications via Radix; no shell access |
 
 - Every comparison is constant-time (`crypto/subtle`), and the token check
@@ -31,6 +31,17 @@ on that machine, so the agent treats every network path as hostile.
   though a 160-bit code can't be guessed anyway.
 - Revoking a pairing deletes its hash and closes its live connections with
   close code 4003.
+
+## Hooks
+
+- `hedera hook` sends the hook token only to a loopback `http://` URL, so a
+  tampered `HEDERA_HOOK_URL` can't carry it off the machine.
+- `/v1/hook` returns the same 401 for a wrong token and for an unknown
+  session, so it doesn't reveal which sessions exist.
+- Any process inside a session can report Claude events for that session. That
+  is the trust boundary: it already runs as you, in that terminal.
+- `install-hooks` refuses to touch a settings file it can't parse, and writes a
+  timestamped backup before every change.
 
 ## TLS
 

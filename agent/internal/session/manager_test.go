@@ -22,7 +22,7 @@ func newTestManager(t *testing.T, mod func(*Config)) *Manager {
 		MachineID: "m_testtesttesttest",
 		Resolve:   func(_ string, argv []string) ([]string, []string) { return argv, argv },
 		BaseEnv: func() []string {
-			return []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "HEDERA_LEAK=1", "TERM=dumb"}
+			return []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "HEDERA_PTY_ID=s_leakedleak", "HEDERA_HOME=/kept", "TERM=dumb", "CLAUDECODE=1", "CLAUDE_CODE_SESSION_ID=outer", "CLAUDE_CODE_USE_BEDROCK=1"}
 		},
 		Home:        t.TempDir(),
 		HangupGrace: 300 * time.Millisecond,
@@ -175,17 +175,17 @@ func eventTypes(sub *EventSub, n int) string {
 }
 
 func TestEnvironment(t *testing.T) {
-	m := newTestManager(t, nil)
+	m := newTestManager(t, func(c *Config) { c.HookURL = "http://127.0.0.1:1/v1/hook" })
 	s, err := m.Create(proto.CreateRequest{
 		Kind: proto.KindShell,
-		Argv: []string{"/bin/sh", "-c", `echo "id=$HEDERA_PTY_ID m=$HEDERA_MACHINE_ID term=$TERM foo=$FOO leak=${HEDERA_LEAK:-none} tok=${#HEDERA_HOOK_TOKEN}"`},
+		Argv: []string{"/bin/sh", "-c", `echo "id=$HEDERA_PTY_ID m=$HEDERA_MACHINE_ID term=$TERM foo=$FOO home=$HEDERA_HOME url=$HEDERA_HOOK_URL cc=${CLAUDECODE:-unset} ccs=${CLAUDE_CODE_SESSION_ID:-unset} bedrock=$CLAUDE_CODE_USE_BEDROCK tok=${#HEDERA_HOOK_TOKEN}"`},
 		Env:  map[string]string{"FOO": "bar"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	c := collect(mustAttach(t, s, nil))
-	want := "id=" + s.ID() + " m=m_testtesttesttest term=xterm-256color foo=bar leak=none tok="
+	want := "id=" + s.ID() + " m=m_testtesttesttest term=xterm-256color foo=bar home=/kept url=http://127.0.0.1:1/v1/hook cc=unset ccs=unset bedrock=1 tok="
 	c.waitFor(t, want)
 	if len(s.HookToken()) < 40 {
 		t.Fatalf("hook token too short: %d", len(s.HookToken()))

@@ -287,7 +287,7 @@ func (c *conn) handleHello(data []byte) (any, func(), error) {
 			Arch:     runtime.GOARCH,
 			Hostname: c.srv.Hostname,
 		},
-		Capabilities: []string{"shell"},
+		Capabilities: []string{"shell", "claude"},
 		Limits: proto.Limits{
 			MaxSessions:     cfg.MaxSessions,
 			ScrollbackBytes: cfg.ScrollbackBytes,

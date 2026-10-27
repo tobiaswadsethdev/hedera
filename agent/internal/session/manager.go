@@ -39,6 +39,9 @@ type Config struct {
 	BaseEnv func() []string
 	// Home is the default working directory; default os.UserHomeDir().
 	Home string
+	// HookURL is where `hedera hook` posts Claude Code hook events, handed to
+	// processes as HEDERA_HOOK_URL.
+	HookURL string
 
 	Logger *slog.Logger
 	Now    func() time.Time
@@ -195,7 +198,7 @@ func (m *Manager) Create(req proto.CreateRequest) (*Session, error) {
 	if req.Kind == proto.KindClaude {
 		// Hooks (Phase 2) move it on from here.
 		s.status = proto.StatusStarting
-		s.claude = &proto.ClaudeState{}
+		s.claude = newClaudeTracker()
 	}
 	if s.title == "" {
 		s.title = defaultTitle(display, cwd, m.cfg.Home)
@@ -254,7 +257,9 @@ func (m *Manager) buildEnv(s *Session, extra map[string]string) []string {
 	for _, kv := range m.cfg.BaseEnv() {
 		k, _, _ := strings.Cut(kv, "=")
 		switch {
-		case strings.HasPrefix(k, "HEDERA_"):
+		case sessionVars[k], claudeMarkers[k]:
+			// Per-process identity of whoever started the agent; a new
+			// terminal must not look like a child of it.
 			continue
 		case k == "TERM" || k == "COLORTERM":
 			continue
@@ -279,13 +284,30 @@ func (m *Manager) buildEnv(s *Session, extra map[string]string) []string {
 	for _, k := range keys {
 		env = append(env, k+"="+extra[k])
 	}
-	return append(env,
+	env = append(env,
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
 		"HEDERA_PTY_ID="+s.id,
 		"HEDERA_MACHINE_ID="+m.cfg.MachineID,
 		"HEDERA_HOOK_TOKEN="+s.hookToken,
 	)
+	if m.cfg.HookURL != "" {
+		env = append(env, "HEDERA_HOOK_URL="+m.cfg.HookURL)
+	}
+	return env
+}
+
+// claudeMarkers tell Claude Code it runs inside another Claude Code session.
+// They leak in when `hedera run` is started from a Claude Code terminal.
+// Configuration variables (CLAUDE_CODE_USE_BEDROCK etc.) are kept.
+var claudeMarkers = map[string]bool{
+	"CLAUDECODE": true, "CLAUDE_CODE_CHILD_SESSION": true, "CLAUDE_CODE_SESSION_ID": true,
+	"CLAUDE_CODE_ENTRYPOINT": true, "CLAUDE_PID": true,
+}
+
+// sessionVars are the per-session variables the agent sets.
+var sessionVars = map[string]bool{
+	"HEDERA_PTY_ID": true, "HEDERA_MACHINE_ID": true, "HEDERA_HOOK_TOKEN": true, "HEDERA_HOOK_URL": true,
 }
 
 func defaultTitle(argv []string, cwd, home string) string {

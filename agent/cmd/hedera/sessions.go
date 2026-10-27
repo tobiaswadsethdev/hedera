@@ -51,6 +51,9 @@ func cmdList(args []string) error {
 
 func statusText(s proto.Session) string {
 	if s.Exit == nil {
+		if s.Kind == proto.KindShell && s.Claude != nil && s.Claude.Status != proto.ClaudeEnded {
+			return s.Status + " (claude: " + s.Claude.Status + ")"
+		}
 		return s.Status
 	}
 	switch {
@@ -146,6 +149,28 @@ func cmdAttach(args []string) error {
 		return err
 	}
 	return attachLoop(c, positional[0], fromOff)
+}
+
+func cmdSend(args []string) error {
+	fs := newFlags("send", usageFor("send"))
+	remote := targetFlag(fs)
+	enter := fs.Bool("enter", false, "press Enter after the text (sent separately, the way replies are)")
+	ifTurn := fs.Int("if-turn", -1, "only send if the Claude turn still has this number")
+	positional, _, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) != 2 {
+		fs.Usage()
+		return errors.New("need a session ID and the text (use \"\" with --enter to just press Enter)")
+	}
+	req := proto.InputRequest{SessionID: positional[0], Data: positional[1], Submit: *enter}
+	if *ifTurn >= 0 {
+		req.IfTurn = ifTurn
+	}
+	return eachSession(*remote, positional[:1], func(call func(string, any) error, _ string) error {
+		return call(proto.TSessionInput, req)
+	})
 }
 
 func cmdClose(args []string) error {

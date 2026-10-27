@@ -2,50 +2,124 @@
   {
     "name": "hello",
     "direction": "client_to_agent",
-    "message": {"t": "hello", "id": 1, "protocol": {"min": 1, "max": 1}, "client": {"name": "Hedera-iOS", "version": "0.1.0", "platform": "ios"}}
+    "message": {
+      "t": "hello",
+      "id": 1,
+      "protocol": {
+        "min": 1,
+        "max": 1
+      },
+      "client": {
+        "name": "Hedera-iOS",
+        "version": "0.1.0",
+        "platform": "ios"
+      }
+    }
   },
   {
     "name": "hello result",
     "direction": "agent_to_client",
     "response_to": "hello",
     "message": {
-      "t": "res", "re": 1, "ok": true, "protocol": 1,
-      "machine_id": "m_abcdefghijklmnop", "boot_id": "b_abcdefgh23",
-      "agent": {"version": "0.1.0", "os": "darwin", "arch": "arm64", "hostname": "studio"},
-      "capabilities": ["shell"],
-      "limits": {"max_sessions": 32, "scrollback_bytes": 4194304, "max_frame": 65536},
+      "t": "res",
+      "re": 1,
+      "ok": true,
+      "protocol": 1,
+      "machine_id": "m_abcdefghijklmnop",
+      "boot_id": "b_abcdefgh23",
+      "agent": {
+        "version": "0.1.0",
+        "os": "darwin",
+        "arch": "arm64",
+        "hostname": "studio"
+      },
+      "capabilities": [
+        "shell"
+      ],
+      "limits": {
+        "max_sessions": 32,
+        "scrollback_bytes": 4194304,
+        "max_frame": 65536
+      },
       "server_time": "2026-10-27T21:00:00.000Z"
     }
   },
   {
     "name": "unsupported version",
     "direction": "agent_to_client",
-    "message": {"t": "res", "re": 1, "ok": false, "error": {"code": "unsupported_version", "message": "agent speaks protocol 1..1"}}
+    "message": {
+      "t": "res",
+      "re": 1,
+      "ok": false,
+      "error": {
+        "code": "unsupported_version",
+        "message": "agent speaks protocol 1..1"
+      }
+    }
   },
   {
     "name": "session.list",
     "direction": "client_to_agent",
-    "message": {"t": "session.list", "id": 2}
+    "message": {
+      "t": "session.list",
+      "id": 2
+    }
   },
   {
     "name": "session.list result",
     "direction": "agent_to_client",
     "response_to": "session.list",
     "message": {
-      "t": "res", "re": 2, "ok": true,
+      "t": "res",
+      "re": 2,
+      "ok": true,
       "sessions": [
         {
-          "id": "s_4fj7q2m3xa", "kind": "shell", "title": "zsh — hedera", "cwd": "/Users/t/src/hedera",
-          "argv": ["/bin/zsh", "-l"], "pid": 4121, "created_at": "2026-10-27T21:00:00.000Z",
-          "size": {"cols": 120, "rows": 40}, "status": "running", "output_offset": 918233,
-          "attached": 1, "claude": null, "exit": null
+          "id": "s_4fj7q2m3xa",
+          "kind": "shell",
+          "title": "zsh — hedera",
+          "cwd": "/Users/t/src/hedera",
+          "argv": [
+            "/bin/zsh",
+            "-l"
+          ],
+          "pid": 4121,
+          "created_at": "2026-10-27T21:00:00.000Z",
+          "size": {
+            "cols": 120,
+            "rows": 40
+          },
+          "status": "running",
+          "output_offset": 918233,
+          "attached": 1,
+          "claude": null,
+          "exit": null
         },
         {
-          "id": "s_bbbbbbbbbb", "kind": "shell", "title": "make test", "cwd": "/Users/t",
-          "argv": ["make", "test"], "pid": 4200, "created_at": "2026-10-27T21:01:00.000Z",
-          "size": {"cols": 80, "rows": 24}, "status": "exited", "output_offset": 1200,
-          "attached": 0, "claude": null,
-          "exit": {"code": null, "signal": "SIGHUP", "at": "2026-10-27T21:02:00.000Z", "initiated_by": "client"}
+          "id": "s_bbbbbbbbbb",
+          "kind": "shell",
+          "title": "make test",
+          "cwd": "/Users/t",
+          "argv": [
+            "make",
+            "test"
+          ],
+          "pid": 4200,
+          "created_at": "2026-10-27T21:01:00.000Z",
+          "size": {
+            "cols": 80,
+            "rows": 24
+          },
+          "status": "exited",
+          "output_offset": 1200,
+          "attached": 0,
+          "claude": null,
+          "exit": {
+            "code": null,
+            "signal": "SIGHUP",
+            "at": "2026-10-27T21:02:00.000Z",
+            "initiated_by": "client"
+          }
         }
       ]
     }
@@ -53,115 +127,265 @@
   {
     "name": "session.create shell",
     "direction": "client_to_agent",
-    "message": {"t": "session.create", "id": 3, "kind": "shell", "cwd": "~/src/hedera", "env": {"FOO": "bar"}, "cols": 120, "rows": 40}
+    "message": {
+      "t": "session.create",
+      "id": 3,
+      "kind": "shell",
+      "cwd": "~/src/hedera",
+      "env": {
+        "FOO": "bar"
+      },
+      "cols": 120,
+      "rows": 40
+    }
   },
   {
     "name": "session.create claude",
     "direction": "client_to_agent",
-    "message": {"t": "session.create", "id": 4, "kind": "claude", "cwd": "~/src/hedera", "argv": ["claude", "--resume", "abc123"], "cols": 120, "rows": 40, "title": "fix flaky test"}
+    "message": {
+      "t": "session.create",
+      "id": 4,
+      "kind": "claude",
+      "cwd": "~/src/hedera",
+      "argv": [
+        "claude",
+        "--resume",
+        "abc123"
+      ],
+      "cols": 120,
+      "rows": 40,
+      "title": "fix flaky test"
+    }
   },
   {
     "name": "session.create result",
     "direction": "agent_to_client",
     "response_to": "session.create",
     "message": {
-      "t": "res", "re": 3, "ok": true,
+      "t": "res",
+      "re": 3,
+      "ok": true,
       "session": {
-        "id": "s_4fj7q2m3xa", "kind": "shell", "title": "zsh — hedera", "cwd": "/Users/t/src/hedera",
-        "argv": ["/bin/zsh", "-l"], "pid": 4121, "created_at": "2026-10-27T21:00:00.000Z",
-        "size": {"cols": 120, "rows": 40}, "status": "running", "output_offset": 0,
-        "attached": 0, "claude": null, "exit": null
+        "id": "s_4fj7q2m3xa",
+        "kind": "shell",
+        "title": "zsh — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "/bin/zsh",
+          "-l"
+        ],
+        "pid": 4121,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "running",
+        "output_offset": 0,
+        "attached": 0,
+        "claude": null,
+        "exit": null
       }
     }
   },
   {
     "name": "session.attach",
     "direction": "client_to_agent",
-    "message": {"t": "session.attach", "id": 5, "session_id": "s_4fj7q2m3xa", "from_offset": 0, "cols": 120, "rows": 40}
+    "message": {
+      "t": "session.attach",
+      "id": 5,
+      "session_id": "s_4fj7q2m3xa",
+      "from_offset": 0,
+      "cols": 120,
+      "rows": 40
+    }
   },
   {
     "name": "session.attach result",
     "direction": "agent_to_client",
     "response_to": "session.attach",
     "message": {
-      "t": "res", "re": 5, "ok": true, "channel": 1,
+      "t": "res",
+      "re": 5,
+      "ok": true,
+      "channel": 1,
       "session": {
-        "id": "s_4fj7q2m3xa", "kind": "shell", "title": "zsh — hedera", "cwd": "/Users/t/src/hedera",
-        "argv": ["/bin/zsh", "-l"], "pid": 4121, "created_at": "2026-10-27T21:00:00.000Z",
-        "size": {"cols": 120, "rows": 40}, "status": "running", "output_offset": 918233,
-        "attached": 1, "claude": null, "exit": null
+        "id": "s_4fj7q2m3xa",
+        "kind": "shell",
+        "title": "zsh — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "/bin/zsh",
+          "-l"
+        ],
+        "pid": 4121,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "running",
+        "output_offset": 918233,
+        "attached": 1,
+        "claude": null,
+        "exit": null
       },
-      "replay": {"from": 0, "to": 918233, "truncated": false}
+      "replay": {
+        "from": 0,
+        "to": 918233,
+        "truncated": false
+      }
     }
   },
   {
     "name": "session.input submit",
     "direction": "client_to_agent",
-    "message": {"t": "session.input", "id": 6, "session_id": "s_4fj7q2m3xa", "data": "yes, go ahead", "submit": true, "if_turn": 7}
+    "message": {
+      "t": "session.input",
+      "id": 6,
+      "session_id": "s_4fj7q2m3xa",
+      "data": "yes, go ahead",
+      "submit": true,
+      "if_turn": 7
+    }
   },
   {
     "name": "session.resize",
     "direction": "client_to_agent",
-    "message": {"t": "session.resize", "id": 7, "session_id": "s_4fj7q2m3xa", "cols": 100, "rows": 30}
+    "message": {
+      "t": "session.resize",
+      "id": 7,
+      "session_id": "s_4fj7q2m3xa",
+      "cols": 100,
+      "rows": 30
+    }
   },
   {
     "name": "session.detach",
     "direction": "client_to_agent",
-    "message": {"t": "session.detach", "id": 8, "channel": 1}
+    "message": {
+      "t": "session.detach",
+      "id": 8,
+      "channel": 1
+    }
   },
   {
     "name": "session.close",
     "direction": "client_to_agent",
-    "message": {"t": "session.close", "id": 9, "session_id": "s_4fj7q2m3xa", "mode": "hangup"}
+    "message": {
+      "t": "session.close",
+      "id": 9,
+      "session_id": "s_4fj7q2m3xa",
+      "mode": "hangup"
+    }
   },
   {
     "name": "session.remove",
     "direction": "client_to_agent",
-    "message": {"t": "session.remove", "id": 10, "session_id": "s_4fj7q2m3xa"}
+    "message": {
+      "t": "session.remove",
+      "id": 10,
+      "session_id": "s_4fj7q2m3xa"
+    }
   },
   {
     "name": "empty ok result",
     "direction": "agent_to_client",
     "response_to": "session.resize",
-    "message": {"t": "res", "re": 7, "ok": true}
+    "message": {
+      "t": "res",
+      "re": 7,
+      "ok": true
+    }
   },
   {
     "name": "not found",
     "direction": "agent_to_client",
-    "message": {"t": "res", "re": 9, "ok": false, "error": {"code": "not_found", "message": "no such session"}}
+    "message": {
+      "t": "res",
+      "re": 9,
+      "ok": false,
+      "error": {
+        "code": "not_found",
+        "message": "no such session"
+      }
+    }
   },
   {
     "name": "events.subscribe",
     "direction": "client_to_agent",
-    "message": {"t": "events.subscribe", "id": 11, "since_seq": 41}
+    "message": {
+      "t": "events.subscribe",
+      "id": 11,
+      "since_seq": 41
+    }
   },
   {
     "name": "events.subscribe result",
     "direction": "agent_to_client",
     "response_to": "events.subscribe",
-    "message": {"t": "res", "re": 11, "ok": true, "seq": 44, "reset": false}
+    "message": {
+      "t": "res",
+      "re": 11,
+      "ok": true,
+      "seq": 44,
+      "reset": false
+    }
   },
   {
     "name": "events.unsubscribe",
     "direction": "client_to_agent",
-    "message": {"t": "events.unsubscribe", "id": 12}
+    "message": {
+      "t": "events.unsubscribe",
+      "id": 12
+    }
   },
   {
     "name": "event session.resized",
     "direction": "agent_to_client",
-    "message": {"t": "event", "seq": 42, "ts": "2026-10-27T21:00:00.000Z", "type": "session.resized", "session_id": "s_4fj7q2m3xa", "cols": 100, "rows": 30}
+    "message": {
+      "t": "event",
+      "seq": 42,
+      "ts": "2026-10-27T21:00:00.000Z",
+      "type": "session.resized",
+      "session_id": "s_4fj7q2m3xa",
+      "cols": 100,
+      "rows": 30
+    }
   },
   {
     "name": "event session.exited",
     "direction": "agent_to_client",
     "message": {
-      "t": "event", "seq": 43, "ts": "2026-10-27T21:02:00.000Z", "type": "session.exited",
+      "t": "event",
+      "seq": 43,
+      "ts": "2026-10-27T21:02:00.000Z",
+      "type": "session.exited",
       "session": {
-        "id": "s_4fj7q2m3xa", "kind": "shell", "title": "zsh — hedera", "cwd": "/Users/t/src/hedera",
-        "argv": ["/bin/zsh", "-l"], "pid": 4121, "created_at": "2026-10-27T21:00:00.000Z",
-        "size": {"cols": 100, "rows": 30}, "status": "exited", "output_offset": 918500,
-        "attached": 1, "claude": null,
-        "exit": {"code": 0, "signal": null, "at": "2026-10-27T21:02:00.000Z", "initiated_by": "process"}
+        "id": "s_4fj7q2m3xa",
+        "kind": "shell",
+        "title": "zsh — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "/bin/zsh",
+          "-l"
+        ],
+        "pid": 4121,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 100,
+          "rows": 30
+        },
+        "status": "exited",
+        "output_offset": 918500,
+        "attached": 1,
+        "claude": null,
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-27T21:02:00.000Z",
+          "initiated_by": "process"
+        }
       }
     }
   },
@@ -169,16 +393,39 @@
     "name": "event session.updated",
     "direction": "agent_to_client",
     "message": {
-      "t": "event", "seq": 44, "ts": "2026-10-27T21:02:00.000Z", "type": "session.updated", "reason": "attached",
+      "t": "event",
+      "seq": 44,
+      "ts": "2026-10-27T21:02:00.000Z",
+      "type": "session.updated",
+      "reason": "attached",
       "session": {
-        "id": "s_4fj7q2m3xa", "kind": "claude", "title": "claude — hedera", "cwd": "/Users/t/src/hedera",
-        "argv": ["claude"], "pid": 4121, "created_at": "2026-10-27T21:00:00.000Z",
-        "size": {"cols": 100, "rows": 30}, "status": "needs_input", "output_offset": 918500, "attached": 2,
+        "id": "s_4fj7q2m3xa",
+        "kind": "claude",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 4121,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 100,
+          "rows": 30
+        },
+        "status": "needs_input",
+        "output_offset": 918500,
+        "attached": 2,
         "claude": {
-          "session_id": "abc123", "turn": 7,
-          "needs_input": {"kind": "permission_prompt", "message": "Claude needs your permission"},
+          "status": "needs_input",
+          "session_id": "abc123",
+          "turn": 7,
+          "needs_input": {
+            "kind": "permission_prompt",
+            "message": "Claude needs your permission"
+          },
           "last_message_preview": "I've updated the tests",
-          "last_error": null
+          "last_error": null,
+          "end_reason": null
         },
         "exit": null
       }
@@ -187,21 +434,252 @@
   {
     "name": "event session.removed",
     "direction": "agent_to_client",
-    "message": {"t": "event", "seq": 45, "ts": "2026-10-27T21:03:00.000Z", "type": "session.removed", "session_id": "s_4fj7q2m3xa"}
+    "message": {
+      "t": "event",
+      "seq": 45,
+      "ts": "2026-10-27T21:03:00.000Z",
+      "type": "session.removed",
+      "session_id": "s_4fj7q2m3xa"
+    }
   },
   {
     "name": "lagged",
     "direction": "agent_to_client",
-    "message": {"t": "lagged", "channel": 1, "session_id": "s_4fj7q2m3xa", "offset": 918233}
+    "message": {
+      "t": "lagged",
+      "channel": 1,
+      "session_id": "s_4fj7q2m3xa",
+      "offset": 918233
+    }
   },
   {
     "name": "detached",
     "direction": "agent_to_client",
-    "message": {"t": "detached", "channel": 1, "session_id": "s_4fj7q2m3xa", "reason": "exited"}
+    "message": {
+      "t": "detached",
+      "channel": 1,
+      "session_id": "s_4fj7q2m3xa",
+      "reason": "exited"
+    }
   },
   {
     "name": "events.lagged",
     "direction": "agent_to_client",
-    "message": {"t": "events.lagged", "seq": 44}
+    "message": {
+      "t": "events.lagged",
+      "seq": 44
+    }
+  },
+  {
+    "name": "event claude.turn_finished",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "event",
+      "seq": 50,
+      "ts": "2026-10-27T21:10:00.000Z",
+      "type": "claude.turn_finished",
+      "turn": 3,
+      "preview": "All 42 tests pass now.",
+      "session": {
+        "id": "s_claudezxyz",
+        "kind": "claude",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 5001,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "idle",
+        "output_offset": 52011,
+        "attached": 0,
+        "claude": {
+          "status": "idle",
+          "session_id": "abc123",
+          "turn": 3,
+          "needs_input": null,
+          "last_message_preview": "All 42 tests pass now.",
+          "last_error": null,
+          "end_reason": null
+        },
+        "exit": null
+      }
+    }
+  },
+  {
+    "name": "event claude.needs_input",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "event",
+      "seq": 51,
+      "ts": "2026-10-27T21:11:00.000Z",
+      "type": "claude.needs_input",
+      "turn": 4,
+      "kind": "permission_prompt",
+      "message": "Claude needs your permission to use Bash",
+      "session": {
+        "id": "s_claudezxyz",
+        "kind": "claude",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 5001,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "needs_input",
+        "output_offset": 52011,
+        "attached": 0,
+        "claude": {
+          "status": "needs_input",
+          "session_id": "abc123",
+          "turn": 4,
+          "needs_input": {
+            "kind": "permission_prompt",
+            "message": "Claude needs your permission to use Bash"
+          },
+          "last_message_preview": "All 42 tests pass now.",
+          "last_error": null,
+          "end_reason": null
+        },
+        "exit": null
+      }
+    }
+  },
+  {
+    "name": "event claude.failed",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "event",
+      "seq": 52,
+      "ts": "2026-10-27T21:12:00.000Z",
+      "type": "claude.failed",
+      "turn": 5,
+      "error": "rate_limit",
+      "error_details": "429 Too Many Requests",
+      "session": {
+        "id": "s_claudezxyz",
+        "kind": "claude",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 5001,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "failed",
+        "output_offset": 52011,
+        "attached": 0,
+        "claude": {
+          "status": "failed",
+          "session_id": "abc123",
+          "turn": 5,
+          "needs_input": null,
+          "last_message_preview": "All 42 tests pass now.",
+          "last_error": {
+            "error": "rate_limit",
+            "error_details": "429 Too Many Requests"
+          },
+          "end_reason": null
+        },
+        "exit": null
+      }
+    }
+  },
+  {
+    "name": "event claude.ended",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "event",
+      "seq": 53,
+      "ts": "2026-10-27T21:13:00.000Z",
+      "type": "claude.ended",
+      "turn": 5,
+      "reason": "prompt_input_exit",
+      "session": {
+        "id": "s_claudezxyz",
+        "kind": "claude",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 5001,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "exited",
+        "output_offset": 52011,
+        "attached": 0,
+        "claude": {
+          "status": "ended",
+          "session_id": "abc123",
+          "turn": 5,
+          "needs_input": null,
+          "last_message_preview": "All 42 tests pass now.",
+          "last_error": null,
+          "end_reason": "prompt_input_exit"
+        },
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": "2026-10-27T21:13:00.000Z",
+          "initiated_by": "process"
+        }
+      }
+    }
+  },
+  {
+    "name": "event session.updated for claude inside a shell",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "event",
+      "seq": 54,
+      "ts": "2026-10-27T21:14:00.000Z",
+      "type": "session.updated",
+      "reason": "claude",
+      "session": {
+        "id": "s_claudezxyz",
+        "kind": "shell",
+        "title": "claude — hedera",
+        "cwd": "/Users/t/src/hedera",
+        "argv": [
+          "claude"
+        ],
+        "pid": 5001,
+        "created_at": "2026-10-27T21:00:00.000Z",
+        "size": {
+          "cols": 120,
+          "rows": 40
+        },
+        "status": "running",
+        "output_offset": 52011,
+        "attached": 0,
+        "claude": {
+          "status": "working",
+          "session_id": "abc123",
+          "turn": 6,
+          "needs_input": null,
+          "last_message_preview": null,
+          "last_error": null,
+          "end_reason": null
+        },
+        "exit": null
+      }
+    }
   }
 ]

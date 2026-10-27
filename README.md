@@ -16,8 +16,8 @@ Security notes are in [docs/security.md](docs/security.md).
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Protocol spec, agent on macOS/Linux, pairing, CLI client | done |
-| 2 | Claude Code hooks, `install-hooks`, Claude session states | next |
-| 3 | iOS app: pairing, machine list, terminal, reconnect | |
+| 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
+| 3 | iOS app: pairing, machine list, terminal, reconnect | next |
 | 4 | Radix + APNs, notifications with reply | |
 | 5 | Windows (ConPTY, logon task), hardening | |
 
@@ -57,6 +57,12 @@ hedera new --remote studio -- htop
 hedera events --remote studio        # live event stream as JSON lines
 ```
 
+Type into a session without attaching, the way a notification reply will:
+
+```sh
+hedera send s_xxxxxxxxxx "yes, go ahead" --enter
+```
+
 Pairing codes work once and expire after five minutes. `hedera tokens` lists
 paired devices on A; `hedera tokens revoke <id>` cuts one off immediately.
 
@@ -70,6 +76,27 @@ hedera pair --no-qr                          # copy the URL
 HEDERA_HOME=/tmp/hedera-b hedera remote add '<url>' --name self
 HEDERA_HOME=/tmp/hedera-b hedera ls --remote self
 ```
+
+## Claude Code
+
+```sh
+hedera install-hooks --dry-run   # show the change to ~/.claude/settings.json
+hedera install-hooks             # merge hedera's hooks in (backs up the file first)
+hedera new --claude              # or run `claude` yourself inside any hedera shell
+hedera ls                        # STATUS shows starting / working / idle / needs_input / failed
+hedera events                    # claude.turn_finished, claude.needs_input, claude.failed, claude.ended
+```
+
+`install-hooks` only adds its own entries (a `hedera hook` command on nine
+events) and leaves your other hooks, settings and key order alone. Run it again
+after moving the binary; `--uninstall` takes the entries out again. It honours
+`CLAUDE_CONFIG_DIR`, and `--settings PATH` edits any other settings file.
+
+The hook does nothing outside a hedera session, never prints, and always exits
+0, so it can't change how Claude Code behaves. Claude Code holds hooks back in
+a folder until you accept its trust dialog, so a new folder shows `starting`
+until then. The state machine is described in
+[protocol/spec.md §6](protocol/spec.md#6-claude-state).
 
 ## State
 

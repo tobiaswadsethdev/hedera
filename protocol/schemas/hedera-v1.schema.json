@@ -36,8 +36,9 @@
     },
     "claudeState": {
       "type": "object",
-      "required": ["session_id", "turn", "needs_input", "last_message_preview", "last_error"],
+      "required": ["status", "session_id", "turn", "needs_input", "last_message_preview", "last_error", "end_reason"],
       "properties": {
+        "status": {"enum": ["starting", "working", "idle", "needs_input", "failed", "ended"]},
         "session_id": {"type": ["string", "null"]},
         "turn": {"type": "integer", "minimum": 0},
         "needs_input": {
@@ -50,7 +51,8 @@
           "type": ["object", "null"],
           "required": ["error"],
           "properties": {"error": {"type": "string"}, "error_details": {"type": ["string", "null"]}}
-        }
+        },
+        "end_reason": {"type": ["string", "null"]}
       }
     },
     "session": {
@@ -264,7 +266,17 @@
         {"if": {"properties": {"type": {"const": "session.resized"}}},
          "then": {"required": ["session_id", "cols", "rows"], "properties": {"session_id": {"$ref": "#/$defs/sessionId"}, "cols": {"$ref": "#/$defs/dimension"}, "rows": {"$ref": "#/$defs/dimension"}}}},
         {"if": {"properties": {"type": {"const": "session.removed"}}},
-         "then": {"required": ["session_id"], "properties": {"session_id": {"$ref": "#/$defs/sessionId"}}}}
+         "then": {"required": ["session_id"], "properties": {"session_id": {"$ref": "#/$defs/sessionId"}}}},
+        {"if": {"properties": {"type": {"enum": ["claude.turn_finished", "claude.needs_input", "claude.failed", "claude.ended"]}}},
+         "then": {"required": ["session", "turn"], "properties": {"session": {"$ref": "#/$defs/session"}, "turn": {"type": "integer", "minimum": 0}}}},
+        {"if": {"properties": {"type": {"const": "claude.turn_finished"}}},
+         "then": {"properties": {"preview": {"type": "string"}}}},
+        {"if": {"properties": {"type": {"const": "claude.needs_input"}}},
+         "then": {"required": ["kind", "message"], "properties": {"kind": {"type": "string"}, "message": {"type": "string"}}}},
+        {"if": {"properties": {"type": {"const": "claude.failed"}}},
+         "then": {"required": ["error"], "properties": {"error": {"type": "string"}, "error_details": {"type": "string"}}}},
+        {"if": {"properties": {"type": {"const": "claude.ended"}}},
+         "then": {"required": ["reason"], "properties": {"reason": {"type": "string"}}}}
       ]
     },
     "lagged": {

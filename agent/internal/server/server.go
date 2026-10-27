@@ -99,7 +99,38 @@ func (s *Server) LocalHandler() http.Handler {
 	mux.HandleFunc("GET /v1/local/pair-codes/{id}/wait", s.requireLocal(s.handleWaitCode))
 	mux.HandleFunc("GET /v1/local/pairings", s.requireLocal(s.handleListPairings))
 	mux.HandleFunc("DELETE /v1/local/pairings/{id}", s.requireLocal(s.handleRevoke))
+	mux.HandleFunc("POST /v1/hook", s.handleHook)
 	return s.peerCheck(mux, netip.Addr.IsLoopback)
+}
+
+// HookSessionHeader names the session a hook event belongs to.
+const HookSessionHeader = "X-Hedera-Session"
+
+// handleHook receives Claude Code hook events from `hedera hook`. It is
+// authenticated with the session's own hook token, so a process can only
+// report events for the session it runs in.
+func (s *Server) handleHook(w http.ResponseWriter, r *http.Request) {
+	tok, _ := bearer(r)
+	sess, err := s.Manager.Get(r.Header.Get(HookSessionHeader))
+	// Compare against a dummy when the session is unknown so both failures
+	// take the same path.
+	want := "hht_no-such-session"
+	if err == nil {
+		want = sess.HookToken()
+	}
+	got, exp := sha256.Sum256([]byte(tok)), sha256.Sum256([]byte(want))
+	if subtle.ConstantTimeCompare(got[:], exp[:]) != 1 || err != nil {
+		unauthorized(w)
+		return
+	}
+	var ev session.HookEvent
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&ev); err != nil || ev.HookEventName == "" {
+		http.Error(w, "bad hook payload", http.StatusBadRequest)
+		return
+	}
+	s.Log.Debug("hook", "session", sess.ID(), "event", ev.HookEventName, "type", ev.NotificationType)
+	sess.ApplyHook(ev)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) peerCheck(next http.Handler, allowed func(netip.Addr) bool) http.Handler {
