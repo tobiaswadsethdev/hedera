@@ -18,6 +18,8 @@ export default defineConfig({
           APNS_KEY_ID: "TESTKEY123",
           APNS_TEAM_ID: "TESTTEAM12",
           APNS_TOPIC: "dev.hedera.test",
+          // Never pick up a developer's local override.
+          APNS_ORIGIN_OVERRIDE: "",
         },
       },
     })),

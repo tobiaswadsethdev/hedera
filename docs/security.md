@@ -21,7 +21,8 @@ on that machine, so the agent treats every network path as hostile.
 | Pairing code | QR code, 5-minute single use | one `POST /v1/pair` |
 | Local admin token (`hlt_…`) | `local.token`, mode 0600 | local API: sessions, pairing, revocation |
 | Hook token (`hht_…`) | env of one session's processes | posting hook events for that session only |
-| Push token (Phase 4) | agent | sending notifications via Radix; no shell access |
+| Push token (`hrp_…`) | agent `push.json` (0600); Radix stores SHA-256 only | sending notifications to one linked device; no shell access |
+| Device secret (`hrd_…`) | the app; Radix stores SHA-256 only | managing that device's registration and links in Radix |
 
 - Every comparison is constant-time (`crypto/subtle`), and the token check
   compares against every stored hash rather than stopping at the first match.
@@ -43,6 +44,22 @@ on that machine, so the agent treats every network path as hostile.
 - `install-hooks` refuses to touch a settings file it can't parse, and writes a
   timestamped backup before every change.
 
+## Push
+
+- The APNs key lives only in Radix, as a Worker secret. Radix never sees a
+  pairing token, so a compromised relay can send notifications but can't open
+  shells.
+- Radix chooses each notification's category and interruption level from its
+  `kind`, and takes the machine ID from the link, so a leaked push token can
+  neither break through Focus at will nor impersonate another machine.
+- The agent accepts only `https` Radix URLs (plain `http` for loopback only)
+  and verifies a push token with Radix before storing it.
+- Revoking a pairing removes its push route; deleting the link in Radix makes
+  the agent stop using the token.
+- Notification text (session titles, Claude's last message) passes through
+  Radix and APNs in plaintext until the optional end-to-end encryption in
+  phase 5.
+
 ## TLS
 
 The Tailscale tunnel is encrypted already, but it is not trusted on its own.
@@ -60,6 +77,4 @@ The state directory is mode 0700; `local.token`, `pairings.json`,
 - Peer identity within the tailnet is not checked yet (any device on your
   tailnet can try to connect, but still needs a token). Phase 5 may add
   Tailscale `whois` checks.
-- Push payloads will pass through Radix and APNs in plaintext until the
-  optional end-to-end encryption in Phase 5.
 - Restarting the agent ends all sessions, since the agent owns the PTYs.

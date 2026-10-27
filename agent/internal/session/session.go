@@ -30,16 +30,17 @@ type Session struct {
 
 	writeMu sync.Mutex // serializes input so submit sequences stay intact
 
-	mu       sync.Mutex
-	ring     *Ring
-	title    string
-	size     proto.Size
-	status   string
-	exit     *proto.Exit
-	exitTime time.Time
-	claude   *claudeTracker // kind claude, or once a hook arrives
-	subs     map[*Subscriber]struct{}
-	closing  string // who asked it to close: "client", "agent" or ""
+	mu        sync.Mutex
+	ring      *Ring
+	title     string
+	size      proto.Size
+	status    string
+	exit      *proto.Exit
+	exitTime  time.Time
+	lastInput time.Time
+	claude    *claudeTracker // kind claude, or once a hook arrives
+	subs      map[*Subscriber]struct{}
+	closing   string // who asked it to close: "client", "agent" or ""
 
 	exitedCh chan struct{}
 }
@@ -248,7 +249,18 @@ func (s *Session) writeLocked(p []byte) error {
 		}
 		return err
 	}
+	s.mu.Lock()
+	s.lastInput = s.m.now()
+	s.mu.Unlock()
 	return nil
+}
+
+// LastInputAt is when input was last written to the session, from any
+// client; zero if never.
+func (s *Session) LastInputAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastInput
 }
 
 // Input writes text from a session.input request. With submit, it pauses

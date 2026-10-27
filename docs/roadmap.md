@@ -8,8 +8,8 @@ and 2 are done; see the [README](../README.md) for what they cover and the
 |---|---|---|
 | 1 | Protocol v1, agent on macOS/Linux, pairing, CLI client | done |
 | 2 | Claude Code hooks, `install-hooks`, Claude session states and events | done |
-| 3 | Hedera iOS app: pairing, machine list, terminal, reconnect | next |
-| 4 | Radix push relay, notifications with reply | |
+| 3 | Hedera iOS app: pairing, machine list, terminal, reconnect | on hold |
+| 4 | Radix push relay, notifications with reply | server side done; see below |
 | 5 | Windows, then hardening | |
 
 The iOS app comes before Radix (the original brief had them the other way
@@ -68,6 +68,16 @@ Claude session, type into it with the accessory row, lock and reopen the app,
 and come back to the same session with nothing lost or duplicated.
 
 ## Phase 4: Radix and notifications
+
+**Status.** Radix (`relay/`) and the agent's push support are built and
+tested, including an end-to-end run of agent → Radix on workerd → a fake
+APNs. Left for later:
+
+- Deploying Radix, then the Workers-to-APNs check below (needs your
+  Cloudflare account and `.p8` key; `relay/README.md` has the steps).
+- Everything on the phone: registering with Radix, linking machines, sending
+  `push.configure`, notification categories and the reply action. This comes
+  with phase 3.
 
 ### First: check that Workers can talk to APNs
 

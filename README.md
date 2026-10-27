@@ -5,8 +5,8 @@ Control terminals and Claude Code sessions on your computers from an iPhone.
 | Part | Path | What it is |
 |---|---|---|
 | `hedera` | [`agent/`](agent) | Go agent on each computer: owns PTYs, serves the WebSocket API over Tailscale, and is also the CLI |
-| Radix | `relay/` (Phase 4) | Cloudflare Worker that holds the APNs key and delivers push notifications |
-| Hedera app | `ios/` (Phase 3) | SwiftUI app with SwiftTerm terminals |
+| Radix | [`relay/`](relay) | Cloudflare Worker that holds the APNs key and delivers push notifications |
+| Hedera app | `ios/` (phase 3) | SwiftUI app with SwiftTerm terminals |
 | Protocol | [`protocol/`](protocol) | The contract: [spec](protocol/spec.md), JSON Schema, golden fixtures |
 
 Security notes are in [docs/security.md](docs/security.md); the plan for the
@@ -18,8 +18,8 @@ remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 |---|---|---|
 | 1 | Protocol spec, agent on macOS/Linux, pairing, CLI client | done |
 | 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
-| 3 | iOS app: pairing, machine list, terminal, reconnect | next |
-| 4 | Radix + APNs, notifications with reply | |
+| 3 | iOS app: pairing, machine list, terminal, reconnect | on hold |
+| 4 | Radix + APNs, notifications with reply | server side done; app side waits for phase 3 |
 | 5 | Windows (ConPTY, logon task), hardening | |
 
 ## Build
@@ -98,6 +98,25 @@ The hook does nothing outside a hedera session, never prints, and always exits
 a folder until you accept its trust dialog, so a new folder shows `starting`
 until then. The state machine is described in
 [protocol/spec.md §6](protocol/spec.md#6-claude-state).
+
+## Push notifications
+
+Radix delivers notifications to your phone; see [relay/README.md](relay/README.md)
+to deploy it and to check that it can reach APNs. The app will configure each
+machine's push route when it pairs. Until then, `hedera push configure` sets a
+route by hand:
+
+```sh
+hedera push configure --radix https://radix.example.workers.dev --token hrp_…
+hedera push test
+hedera push status       # routes, queue length, last delivery, errors
+```
+
+A shell that exits by itself, a Claude turn that finishes, needs input, fails
+or ends all notify (see [protocol/spec.md §7.3](protocol/spec.md#73-what-notifies)).
+Sessions you close from a client, agent restarts, and exits right after you
+typed (`exit`, `/exit`) don't. Notifications are queued on disk and retried if
+Radix is unreachable.
 
 ## State
 

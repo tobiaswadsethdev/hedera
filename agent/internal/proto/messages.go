@@ -21,6 +21,8 @@ const (
 	TEventsSubscribe   = "events.subscribe"
 	TEventsUnsubscribe = "events.unsubscribe"
 	TPushConfigure     = "push.configure"
+	TPushStatus        = "push.status"
+	TPushRemove        = "push.remove"
 )
 
 // Agent-to-client message types.
@@ -236,6 +238,25 @@ type SubscribeRequest struct {
 type SubscribeResult struct {
 	Seq   uint64 `json:"seq"`
 	Reset bool   `json:"reset"`
+}
+
+// Push messages.
+
+type PushConfigureRequest struct {
+	RadixURL  string          `json:"radix_url"`
+	PushToken string          `json:"push_token"`
+	Prefs     map[string]bool `json:"prefs,omitempty"`
+}
+
+type PushStatus struct {
+	Configured    bool            `json:"configured"`
+	RadixURL      string          `json:"radix_url,omitempty"`
+	Label         string          `json:"label,omitempty"`
+	Prefs         map[string]bool `json:"prefs,omitempty"`
+	Broken        string          `json:"broken,omitempty"`
+	LastSuccessAt string          `json:"last_success_at,omitempty"`
+	LastError     string          `json:"last_error,omitempty"`
+	Queued        int             `json:"queued"`
 }
 
 // Event is the envelope for every event type. Fields that a type does not use

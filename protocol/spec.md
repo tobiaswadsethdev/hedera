@@ -5,9 +5,8 @@ Hedera iOS app and the `hedera` CLI). The JSON Schemas in `schemas/` and the
 golden fixtures in `fixtures/` are normative; if this text and a schema
 disagree, the schema wins and this text is a bug.
 
-Sections marked **(Phase 4)** describe messages that are specified now but not
-yet implemented by the agent. An agent advertises what it
-implements through `capabilities` in the handshake.
+An agent advertises what it implements through `capabilities` in the
+handshake.
 
 ## 1. Transport
 
@@ -157,6 +156,7 @@ Unknown fields must be ignored by both sides. Unknown request types get
 | `session_running` | the operation needs an exited session |
 | `limit_exceeded` | e.g. too many sessions |
 | `stale` | an `if_turn` precondition failed |
+| `unavailable` | a service the agent depends on (Radix) could not be reached |
 | `internal` | anything else; the message is safe to show |
 
 ### 2.4 Close codes
@@ -203,7 +203,7 @@ Capabilities defined so far:
 |---|---|
 | `shell` | shell sessions (always present) |
 | `claude` | Claude Code hook integration (section 6) |
-| `push` | `push.configure` (Phase 4) |
+| `push` | push notifications through Radix (section 7) |
 
 ## 4. Sessions
 
@@ -536,15 +536,64 @@ Notes:
   `source` `clear`, `resume` or `fork`, which rebinds the PTY to the new ID.
 - Hooks after the process exited, and unknown hook events, are ignored.
 
-## 7. Push (Phase 4)
+## 7. Push
 
-`push.configure` hands the agent a push-only credential from Radix; see
-`radix-api.md`, written in Phase 4.
+Agents send notifications through Radix, the push relay; its API is in
+[radix-api.md](radix-api.md). The app registers with Radix, links the machine,
+and hands the agent the link's push token over this connection. Push settings
+belong to the connection's credential: each paired device has its own route,
+and revoking the pairing removes it.
+
+### 7.1 `push.configure`
 
 ```json
 → {"t":"push.configure","id":11,"radix_url":"https://radix.example.workers.dev",
-   "push_token":"…","prefs":{"shell_exited":true,"claude_turn":true}}
+   "push_token":"hrp_…","prefs":{"claude_turn_finished":false}}
+← {"t":"res","re":11,"ok":true,"configured":true,"radix_url":"https://radix.example.workers.dev",
+   "label":"studio","prefs":{"shell_exited":true,"claude_turn_finished":false,"claude_needs_input":true,
+   "claude_failed":true,"claude_ended":true},"queued":0}
 ```
+
+- `radix_url` must be `https` (plain `http` only for loopback, in development).
+- The agent checks the token with Radix (`GET /v1/link`) before storing it:
+  a rejected token is `invalid_argument`, an unreachable Radix `unavailable`.
+- `prefs` switches kinds off; missing kinds are on. Keys are `shell_exited`,
+  `claude_turn_finished`, `claude_needs_input`, `claude_failed`,
+  `claude_ended`.
+- Configuring again replaces the route and drops anything still queued for
+  the old one.
+
+### 7.2 `push.status` and `push.remove`
+
+```json
+→ {"t":"push.status","id":12}
+← {"t":"res","re":12,"ok":true,"configured":true,"radix_url":"…","label":"studio","prefs":{…},
+   "last_success_at":"2026-10-27T21:00:00.000Z","last_error":"","queued":0}
+→ {"t":"push.remove","id":13}
+← {"t":"res","re":13,"ok":true}
+```
+
+`push.status` reports `configured: false` when this credential has no route.
+`broken` is set when Radix rejected the token later on; configure again to
+repair it.
+
+### 7.3 What notifies
+
+| Event | Kind | Condition |
+|---|---|---|
+| `session.exited` of a shell | `shell_exited` | `exit.initiated_by` is `process` |
+| `claude.turn_finished` | `claude_turn_finished` | always |
+| `claude.needs_input` | `claude_needs_input` | always |
+| `claude.failed` | `claude_failed` | always |
+| `claude.ended` | `claude_ended`, or `claude_ended_abnormally` for a non-zero exit or a signal | the exit was not initiated by a client or the agent |
+
+Exits are not pushed when the session received input in the previous 10
+seconds: someone just typed `exit` or `/exit` and knows. The notification's
+title is the session title, the subtitle the machine's hostname, and its
+`event_id` is `<boot_id>-<seq>`, so retries are recognised as duplicates.
+
+Notifications are queued on disk and retried with backoff (honouring
+`Retry-After`) for up to six hours, matching the APNs expiration Radix sets.
 
 ## 8. Local-only HTTP API
 
@@ -559,6 +608,8 @@ token, except `/v1/hook`. The `hedera` CLI uses them; the app never does.
 | `GET /v1/local/pairings` | `{pairings:[{id, device_name, created_at, last_seen_at}]}` |
 | `DELETE /v1/local/pairings/{id}` | revoke; closes that pairing's connections with `4003` |
 | `POST /v1/hook` | Claude Code hook events (see below) |
+| `GET /v1/local/push` | every push route with its status (no tokens) |
+| `POST /v1/local/push/test` | queue a `test` notification for every route; returns `{queued}` |
 
 `POST /v1/hook` takes the hook's JSON payload unchanged as the body (at most
 1 MiB), with `Authorization: Bearer <HEDERA_HOOK_TOKEN>` and

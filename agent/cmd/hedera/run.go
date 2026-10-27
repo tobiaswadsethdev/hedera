@@ -20,6 +20,7 @@ import (
 	"github.com/tobiaswadsethdev/hedera/agent/internal/config"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ids"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/pairing"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/push"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/server"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/session"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/tlsutil"
@@ -75,6 +76,10 @@ func cmdRun(args []string) error {
 		HookURL:         "http://" + localAddr + "/v1/hook",
 		Logger:          log,
 	})
+	pusher, err := push.Open(dir, push.Options{Logger: log})
+	if err != nil {
+		return fmt.Errorf("loading push state: %w", err)
+	}
 	tlsCfg := tlsutil.ServerConfig(cert)
 	srv := &server.Server{
 		Manager:            mgr,
@@ -86,6 +91,7 @@ func cmdRun(args []string) error {
 		Version:            version,
 		Log:                log,
 		AllowLoopbackPeers: *devLoopback,
+		Push:               pusher,
 	}
 	tailnet := &server.TailnetListener{Port: cfg.Port, TLS: tlsCfg, Handler: srv.RemoteHandler(), Log: log}
 	dns := &dnsCache{configured: cfg.DNSName}
@@ -112,8 +118,23 @@ func cmdRun(args []string) error {
 
 	var wg sync.WaitGroup
 	errs := make(chan error, 2)
-	wg.Add(3)
+	wg.Add(5)
 	go func() { defer wg.Done(); mgr.Run(ctx) }()
+	go func() { defer wg.Done(); pusher.Run(ctx) }()
+	go func() {
+		defer wg.Done()
+		pusher.Watch(ctx, push.Source{
+			Bus:      mgr.Bus(),
+			BootID:   srv.BootID,
+			Hostname: hostname,
+			LastInput: func(id string) time.Time {
+				if s, err := mgr.Get(id); err == nil {
+					return s.LastInputAt()
+				}
+				return time.Time{}
+			},
+		})
+	}()
 	go func() { defer wg.Done(); tailnet.Run(ctx) }()
 	go func() { defer wg.Done(); errs <- server.Serve(ctx, localLn, srv.LocalHandler(), log) }()
 	if *devLoopback {

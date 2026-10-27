@@ -22,6 +22,7 @@ import (
 
 	"github.com/tobiaswadsethdev/hedera/agent/internal/pairing"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/push"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/session"
 )
 
@@ -46,6 +47,8 @@ type Server struct {
 	Hostname   string
 	Version    string
 	Log        *slog.Logger
+	// Push delivers notifications through Radix; nil disables push.
+	Push *push.Pusher
 	// PairInfo describes how clients reach the remote listener right now.
 	PairInfo func() PairInfo
 	// AllowLoopbackPeers lets the remote handler accept loopback peers, for
@@ -100,6 +103,8 @@ func (s *Server) LocalHandler() http.Handler {
 	mux.HandleFunc("GET /v1/local/pairings", s.requireLocal(s.handleListPairings))
 	mux.HandleFunc("DELETE /v1/local/pairings/{id}", s.requireLocal(s.handleRevoke))
 	mux.HandleFunc("POST /v1/hook", s.handleHook)
+	mux.HandleFunc("GET /v1/local/push", s.requireLocal(s.handlePushRoutes))
+	mux.HandleFunc("POST /v1/local/push/test", s.requireLocal(s.handlePushTest))
 	return s.peerCheck(mux, netip.Addr.IsLoopback)
 }
 
@@ -339,6 +344,9 @@ func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.CloseConnections(id, proto.CloseRevoked, "revoked")
+	if s.Push != nil {
+		s.Push.Remove(id)
+	}
 	s.Log.Info("pairing revoked", "pairing", id)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -386,4 +394,27 @@ func (l *failureLimiter) fail(ip netip.Addr, now time.Time) {
 		l.failures = map[netip.Addr][]time.Time{}
 	}
 	l.failures[ip] = append(l.recent(ip, now), now)
+}
+
+func (s *Server) handlePushRoutes(w http.ResponseWriter, r *http.Request) {
+	routes := []push.RouteStatus{}
+	if s.Push != nil {
+		routes = s.Push.Routes()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"routes": routes})
+}
+
+func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
+	if s.Push == nil {
+		http.Error(w, "push is disabled", http.StatusServiceUnavailable)
+		return
+	}
+	n := s.Push.Enqueue(push.Notification{
+		EventID:  s.BootID + "-test-" + strconv.FormatInt(time.Now().UnixMilli(), 10),
+		Kind:     push.KindTest,
+		Title:    "Hedera",
+		Subtitle: s.Hostname,
+		Body:     "Test notification from " + s.Hostname,
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"queued": n})
 }

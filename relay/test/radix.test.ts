@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apnsOrigin, providerToken, resetApnsCache } from "../src/apns";
+import * as mainModule from "../src/index";
 import worker from "../src/index";
 
 // --- helpers --------------------------------------------------------------
@@ -109,6 +110,11 @@ async function verifyJWT(jwt: string) {
 // --- tests ----------------------------------------------------------------
 
 describe("basics", () => {
+  it("exports only the default handler from the main module", () => {
+    // workerd refuses to start a Worker whose main module exports anything else.
+    expect(Object.keys(mainModule)).toEqual(["default"]);
+  });
+
   it("reports health", async () => {
     const r = await call("GET", "/v1/health");
     expect(r).toMatchObject({ status: 200, json: { ok: true } });

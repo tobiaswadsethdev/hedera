@@ -35,6 +35,7 @@ func init() {
 		{"rm", "<session-id>", "remove an exited session and its scrollback", cmdRemove},
 		{"events", "[--since SEQ]", "print the event stream as JSON lines", cmdEvents},
 		{"remote", "add <hedera://pair…> [--name N] | ls | rm <name>", "pair this CLI with another machine's agent", cmdRemote},
+		{"push", "[status | test | configure --radix URL --token T | remove]", "push notification routes through Radix", cmdPush},
 		{"install-service", "[--uninstall] [--print] [--force]", "run hedera at login (launchd or systemd --user)", cmdInstallService},
 		{"install-hooks", "[--dry-run] [--uninstall] [--settings PATH]", "add hedera's hooks to Claude Code's settings.json", cmdInstallHooks},
 		{"hook", "", "Claude Code hook handler (run by Claude Code, not by hand)", cmdHook},

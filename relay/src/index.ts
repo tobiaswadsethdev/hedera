@@ -15,9 +15,11 @@ import {
   sha256hex,
   unauthorized,
   type RadixEnv,
+  VERSION,
 } from "./util";
 
-export const VERSION = "1";
+// Only handlers may be exported from this module: workerd treats every
+// export of the main module as an entrypoint and refuses to start otherwise.
 
 const REGISTRATIONS_PER_HOUR = 10;
 const EVENTS_PER_MINUTE = 30;

@@ -1,5 +1,7 @@
 // Small helpers shared by the routes.
 
+export const VERSION = "1";
+
 export type RadixEnv = Env & {
   // Secret, set with `wrangler secret put APNS_KEY_P8`.
   APNS_KEY_P8?: string;
