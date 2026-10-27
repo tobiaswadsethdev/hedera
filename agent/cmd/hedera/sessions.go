@@ -151,6 +151,62 @@ func cmdAttach(args []string) error {
 	return attachLoop(c, positional[0], fromOff)
 }
 
+func cmdResume(args []string) error {
+	fs := newFlags("resume", usageFor("resume"))
+	remote := targetFlag(fs)
+	detached := fs.Bool("d", false, "don't attach after resuming")
+	forget := fs.Bool("forget", false, "drop the session from the list instead of resuming it")
+	positional, _, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	c, err := dial(*remote)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := callCtx()
+	defer cancel()
+	if len(positional) == 0 {
+		defer c.Close()
+		var res proto.ResumableResult
+		if err := c.Call(ctx, proto.TSessionResumable, nil, &res); err != nil {
+			return err
+		}
+		if len(res.Resumable) == 0 {
+			fmt.Println("no Claude sessions to resume")
+			return nil
+		}
+		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(w, "CLAUDE SESSION\tLAST SEEN\tTITLE\tDIRECTORY")
+		for _, r := range res.Resumable {
+			fmt.Fprintf(w, "%s\t%s ago\t%s\t%s\n", r.ClaudeSessionID, age(r.LastSeenAt), r.Title, r.Cwd)
+		}
+		w.Flush()
+		fmt.Println("\nresume one with: hedera resume <claude-session>")
+		return nil
+	}
+	id := positional[0]
+	if *forget {
+		defer c.Close()
+		return c.Call(ctx, proto.TSessionForget, proto.ForgetRequest{ClaudeSessionID: id}, nil)
+	}
+	req := proto.ResumeRequest{ClaudeSessionID: id}
+	tty := term.IsTerminal(int(os.Stdin.Fd()))
+	if tty {
+		req.Cols, req.Rows, _ = term.GetSize(int(os.Stdout.Fd()))
+	}
+	var res proto.CreateResult
+	if err := c.Call(ctx, proto.TSessionResume, req, &res); err != nil {
+		c.Close()
+		return err
+	}
+	if *detached || !tty {
+		fmt.Println(res.Session.ID)
+		return c.Close()
+	}
+	return attachLoop(c, res.Session.ID, nil)
+}
+
 func cmdSend(args []string) error {
 	fs := newFlags("send", usageFor("send"))
 	remote := targetFlag(fs)

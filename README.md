@@ -86,6 +86,7 @@ hedera install-hooks             # merge hedera's hooks in (backs up the file fi
 hedera new --claude              # or run `claude` yourself inside any hedera shell
 hedera ls                        # STATUS shows starting / working / idle / needs_input / failed
 hedera events                    # claude.turn_finished, claude.needs_input, claude.failed, claude.ended
+hedera resume                    # Claude sessions lost when the agent stopped; `hedera resume <id>` brings one back
 ```
 
 `install-hooks` only adds its own entries (a `hedera hook` command on nine

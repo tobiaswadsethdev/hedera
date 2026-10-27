@@ -916,3 +916,37 @@ func TestUnpairRevokesOwnPairing(t *testing.T) {
 		t.Fatalf("local unpair: %v", err)
 	}
 }
+
+func TestResumeOverTheWire(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "claude-sessions.json")
+	withResume := func(c *session.Config) { c.ResumePath = path }
+	h1 := newHarness(t, withResume)
+	s, err := h1.mgr.Create(proto.CreateRequest{Kind: proto.KindClaude, Argv: []string{"/bin/sh", "-c", "read x"}, Title: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.ApplyHook(session.HookEvent{HookEventName: session.HookSessionStart, SessionID: "abc-123", Source: "startup"})
+	sctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	h1.mgr.Shutdown(sctx)
+	cancel()
+
+	h2 := newHarness(t, withResume)
+	c := h2.dialLocal(t)
+	var res proto.ResumableResult
+	if err := c.Call(ctx(t), proto.TSessionResumable, nil, &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Resumable) != 1 || res.Resumable[0].ClaudeSessionID != "abc-123" {
+		t.Fatalf("resumable %+v", res)
+	}
+	if err := c.Call(ctx(t), proto.TSessionResume, proto.ResumeRequest{ClaudeSessionID: "nope"}, nil); codeOf(err) != proto.CodeNotFound {
+		t.Fatalf("unknown resume: %v", err)
+	}
+	if err := c.Call(ctx(t), proto.TSessionForget, proto.ForgetRequest{ClaudeSessionID: "abc-123"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	c.Call(ctx(t), proto.TSessionResumable, nil, &res)
+	if len(res.Resumable) != 0 {
+		t.Fatalf("still resumable: %+v", res)
+	}
+}

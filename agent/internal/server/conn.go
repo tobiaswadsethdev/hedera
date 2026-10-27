@@ -212,6 +212,9 @@ var handlers = map[string]handler{
 	proto.TPushStatus:        (*conn).handlePushStatus,
 	proto.TPushRemove:        (*conn).handlePushRemove,
 	proto.TPairingUnpair:     (*conn).handleUnpair,
+	proto.TSessionResumable:  (*conn).handleResumable,
+	proto.TSessionResume:     (*conn).handleResume,
+	proto.TSessionForget:     (*conn).handleForget,
 }
 
 func (c *conn) handleText(data []byte) {
@@ -612,4 +615,29 @@ func (c *conn) handleUnpair([]byte) (any, func(), error) {
 	}
 	c.log.Info("device unpaired itself")
 	return nil, func() { c.srv.CloseConnections(c.principal, proto.CloseRevoked, "unpaired") }, nil
+}
+
+func (c *conn) handleResumable([]byte) (any, func(), error) {
+	return proto.ResumableResult{Resumable: c.srv.Manager.Resumable()}, nil, nil
+}
+
+func (c *conn) handleResume(data []byte) (any, func(), error) {
+	var req proto.ResumeRequest
+	if err := decode(data, &req); err != nil {
+		return nil, nil, err
+	}
+	s, err := c.srv.Manager.Resume(req.ClaudeSessionID, req.Cols, req.Rows)
+	if err != nil {
+		return nil, nil, err
+	}
+	c.log.Info("claude session resumed", "session", s.ID())
+	return proto.CreateResult{Session: s.Snapshot()}, nil, nil
+}
+
+func (c *conn) handleForget(data []byte) (any, func(), error) {
+	var req proto.ForgetRequest
+	if err := decode(data, &req); err != nil {
+		return nil, nil, err
+	}
+	return nil, nil, c.srv.Manager.Forget(req.ClaudeSessionID)
 }

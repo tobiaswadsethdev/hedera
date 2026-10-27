@@ -24,6 +24,9 @@ const (
 	TPushStatus        = "push.status"
 	TPushRemove        = "push.remove"
 	TPairingUnpair     = "pairing.unpair"
+	TSessionResumable  = "session.resumable"
+	TSessionResume     = "session.resume"
+	TSessionForget     = "session.forget"
 )
 
 // Agent-to-client message types.
@@ -239,6 +242,28 @@ type SubscribeRequest struct {
 type SubscribeResult struct {
 	Seq   uint64 `json:"seq"`
 	Reset bool   `json:"reset"`
+}
+
+// Resumable is a Claude session that was live when the agent stopped.
+type Resumable struct {
+	ClaudeSessionID string `json:"claude_session_id"`
+	Cwd             string `json:"cwd"`
+	Title           string `json:"title"`
+	LastSeenAt      string `json:"last_seen_at"`
+}
+
+type ResumableResult struct {
+	Resumable []Resumable `json:"resumable"`
+}
+
+type ResumeRequest struct {
+	ClaudeSessionID string `json:"claude_session_id"`
+	Cols            int    `json:"cols,omitempty"`
+	Rows            int    `json:"rows,omitempty"`
+}
+
+type ForgetRequest struct {
+	ClaudeSessionID string `json:"claude_session_id"`
 }
 
 // Push messages.

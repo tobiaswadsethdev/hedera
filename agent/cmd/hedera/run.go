@@ -80,6 +80,7 @@ func cmdRun(args []string) error {
 		ScrollbackBytes: cfg.ScrollbackBytes,
 		MaxSessions:     cfg.MaxSessions,
 		HookURL:         "http://" + localAddr + "/v1/hook",
+		ResumePath:      filepath.Join(dir, "claude-sessions.json"),
 		Logger:          log,
 	})
 	pusher, err := push.Open(dir, push.Options{Logger: log})

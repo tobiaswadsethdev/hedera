@@ -495,6 +495,42 @@
           "then": {
             "$ref": "#/$defs/requests/pairing.unpair"
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.resumable"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.resumable"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.resume"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.resume"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "session.forget"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.forget"
+          }
         }
       ]
     },
@@ -746,7 +782,36 @@
       },
       "push.status": {},
       "push.remove": {},
-      "pairing.unpair": {}
+      "pairing.unpair": {},
+      "session.resumable": {},
+      "session.resume": {
+        "required": [
+          "claude_session_id"
+        ],
+        "properties": {
+          "claude_session_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+          },
+          "cols": {
+            "$ref": "#/$defs/dimension"
+          },
+          "rows": {
+            "$ref": "#/$defs/dimension"
+          }
+        }
+      },
+      "session.forget": {
+        "required": [
+          "claude_session_id"
+        ],
+        "properties": {
+          "claude_session_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+          }
+        }
+      }
     },
     "results": {
       "hello": {
@@ -977,7 +1042,52 @@
         }
       },
       "push.remove": {},
-      "pairing.unpair": {}
+      "pairing.unpair": {},
+      "session.resumable": {
+        "required": [
+          "resumable"
+        ],
+        "properties": {
+          "resumable": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "claude_session_id",
+                "cwd",
+                "title",
+                "last_seen_at"
+              ],
+              "properties": {
+                "claude_session_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+                },
+                "cwd": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "last_seen_at": {
+                  "$ref": "#/$defs/timestamp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "session.resume": {
+        "required": [
+          "session"
+        ],
+        "properties": {
+          "session": {
+            "$ref": "#/$defs/session"
+          }
+        }
+      },
+      "session.forget": {}
     },
     "response": {
       "type": "object",
