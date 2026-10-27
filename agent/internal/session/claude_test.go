@@ -4,6 +4,7 @@ package session
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -304,5 +305,16 @@ func TestPreview(t *testing.T) {
 	p := preview(long)
 	if r := []rune(*p); len(r) != previewRunes || r[len(r)-1] != '…' {
 		t.Fatalf("len %d", len(r))
+	}
+}
+
+func TestExitLogShowsTheCode(t *testing.T) {
+	// The exit is logged before Exited() closes, so reading after waitExit
+	// is race-free.
+	var buf strings.Builder
+	m := newTestManager(t, func(c *Config) { c.Logger = slog.New(slog.NewTextHandler(&buf, nil)) })
+	waitExit(t, mustCreate(t, m, "/bin/sh", "-c", "exit 7"))
+	if out := buf.String(); !strings.Contains(out, `msg="session exited"`) || !strings.Contains(out, "code=7") {
+		t.Fatalf("log: %s", out)
 	}
 }
