@@ -1,0 +1,19 @@
+{
+  "name": "radix",
+  "private": true,
+  "description": "Radix: the Hedera push relay (Cloudflare Worker)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler d1 migrations apply radix --remote && wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "wrangler types --strict-vars=false --check && tsc --noEmit",
+    "types": "wrangler types --strict-vars=false"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.154.0"
+  }
+}
