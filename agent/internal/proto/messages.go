@@ -1,0 +1,310 @@
+package proto
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+// Request types.
+const (
+	THello             = "hello"
+	TSessionList       = "session.list"
+	TSessionCreate     = "session.create"
+	TSessionAttach     = "session.attach"
+	TSessionDetach     = "session.detach"
+	TSessionInput      = "session.input"
+	TSessionResize     = "session.resize"
+	TSessionClose      = "session.close"
+	TSessionRemove     = "session.remove"
+	TEventsSubscribe   = "events.subscribe"
+	TEventsUnsubscribe = "events.unsubscribe"
+	TPushConfigure     = "push.configure"
+)
+
+// Agent-to-client message types.
+const (
+	TResponse     = "res"
+	TEvent        = "event"
+	TLagged       = "lagged"
+	TDetached     = "detached"
+	TEventsLagged = "events.lagged"
+)
+
+// Event types.
+const (
+	EvSessionCreated = "session.created"
+	EvSessionUpdated = "session.updated"
+	EvSessionResized = "session.resized"
+	EvSessionExited  = "session.exited"
+	EvSessionRemoved = "session.removed"
+)
+
+// Session kinds and statuses.
+const (
+	KindShell  = "shell"
+	KindClaude = "claude"
+
+	StatusRunning    = "running"
+	StatusStarting   = "starting"
+	StatusWorking    = "working"
+	StatusIdle       = "idle"
+	StatusNeedsInput = "needs_input"
+	StatusFailed     = "failed"
+	StatusExited     = "exited"
+)
+
+// Close codes.
+const (
+	CloseHandshake         = 4001
+	CloseRevoked           = 4003
+	CloseProtocolViolation = 4008
+	CloseWriteTimeout      = 4009
+)
+
+// Header holds the fields common to every control message. Requests are
+// decoded twice: once into Header, then into the typed params.
+type Header struct {
+	T  string  `json:"t"`
+	ID *uint64 `json:"id,omitempty"`
+}
+
+type VersionRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type ClientInfo struct {
+	Name     string `json:"name"`
+	Version  string `json:"version"`
+	Platform string `json:"platform,omitempty"`
+}
+
+type Hello struct {
+	Protocol VersionRange `json:"protocol"`
+	Client   ClientInfo   `json:"client"`
+}
+
+type AgentInfo struct {
+	Version  string `json:"version"`
+	OS       string `json:"os"`
+	Arch     string `json:"arch"`
+	Hostname string `json:"hostname"`
+}
+
+type Limits struct {
+	MaxSessions     int `json:"max_sessions"`
+	ScrollbackBytes int `json:"scrollback_bytes"`
+	MaxFrame        int `json:"max_frame"`
+}
+
+type HelloResult struct {
+	Protocol     int       `json:"protocol"`
+	MachineID    string    `json:"machine_id"`
+	BootID       string    `json:"boot_id"`
+	Agent        AgentInfo `json:"agent"`
+	Capabilities []string  `json:"capabilities"`
+	Limits       Limits    `json:"limits"`
+	ServerTime   string    `json:"server_time"`
+}
+
+type Size struct {
+	Cols int `json:"cols"`
+	Rows int `json:"rows"`
+}
+
+type Exit struct {
+	Code        *int    `json:"code"`
+	Signal      *string `json:"signal"`
+	At          string  `json:"at"`
+	InitiatedBy string  `json:"initiated_by"`
+}
+
+type NeedsInput struct {
+	Kind    string `json:"kind"`
+	Message string `json:"message"`
+}
+
+type ClaudeError struct {
+	Error        string  `json:"error"`
+	ErrorDetails *string `json:"error_details"`
+}
+
+type ClaudeState struct {
+	SessionID          *string      `json:"session_id"`
+	Turn               int          `json:"turn"`
+	NeedsInput         *NeedsInput  `json:"needs_input"`
+	LastMessagePreview *string      `json:"last_message_preview"`
+	LastError          *ClaudeError `json:"last_error"`
+}
+
+type Session struct {
+	ID           string       `json:"id"`
+	Kind         string       `json:"kind"`
+	Title        string       `json:"title"`
+	Cwd          string       `json:"cwd"`
+	Argv         []string     `json:"argv"`
+	Pid          int          `json:"pid"`
+	CreatedAt    string       `json:"created_at"`
+	Size         Size         `json:"size"`
+	Status       string       `json:"status"`
+	OutputOffset uint64       `json:"output_offset"`
+	Attached     int          `json:"attached"`
+	Claude       *ClaudeState `json:"claude"`
+	Exit         *Exit        `json:"exit"`
+}
+
+type ListResult struct {
+	Sessions []Session `json:"sessions"`
+}
+
+type CreateRequest struct {
+	Kind  string            `json:"kind"`
+	Cwd   string            `json:"cwd,omitempty"`
+	Argv  []string          `json:"argv,omitempty"`
+	Env   map[string]string `json:"env,omitempty"`
+	Cols  int               `json:"cols,omitempty"`
+	Rows  int               `json:"rows,omitempty"`
+	Title string            `json:"title,omitempty"`
+}
+
+type CreateResult struct {
+	Session Session `json:"session"`
+}
+
+type AttachRequest struct {
+	SessionID  string  `json:"session_id"`
+	FromOffset *uint64 `json:"from_offset,omitempty"`
+	Cols       int     `json:"cols,omitempty"`
+	Rows       int     `json:"rows,omitempty"`
+}
+
+type Replay struct {
+	From      uint64 `json:"from"`
+	To        uint64 `json:"to"`
+	Truncated bool   `json:"truncated"`
+}
+
+type AttachResult struct {
+	Channel uint32  `json:"channel"`
+	Session Session `json:"session"`
+	Replay  Replay  `json:"replay"`
+}
+
+type DetachRequest struct {
+	Channel uint32 `json:"channel"`
+}
+
+type InputRequest struct {
+	SessionID string `json:"session_id"`
+	Data      string `json:"data"`
+	Submit    bool   `json:"submit,omitempty"`
+	IfTurn    *int   `json:"if_turn,omitempty"`
+}
+
+type ResizeRequest struct {
+	SessionID string `json:"session_id"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+}
+
+type CloseRequest struct {
+	SessionID string `json:"session_id"`
+	Mode      string `json:"mode,omitempty"`
+}
+
+type RemoveRequest struct {
+	SessionID string `json:"session_id"`
+}
+
+type SubscribeRequest struct {
+	SinceSeq *uint64 `json:"since_seq,omitempty"`
+}
+
+type SubscribeResult struct {
+	Seq   uint64 `json:"seq"`
+	Reset bool   `json:"reset"`
+}
+
+// Event is the envelope for every event type. Fields that a type does not use
+// are omitted.
+type Event struct {
+	T         string   `json:"t"`
+	Seq       uint64   `json:"seq"`
+	TS        string   `json:"ts"`
+	Type      string   `json:"type"`
+	Session   *Session `json:"session,omitempty"`
+	SessionID string   `json:"session_id,omitempty"`
+	Reason    string   `json:"reason,omitempty"`
+	Cols      int      `json:"cols,omitempty"`
+	Rows      int      `json:"rows,omitempty"`
+}
+
+type Lagged struct {
+	T         string `json:"t"`
+	Channel   uint32 `json:"channel"`
+	SessionID string `json:"session_id"`
+	Offset    uint64 `json:"offset"`
+}
+
+type Detached struct {
+	T         string `json:"t"`
+	Channel   uint32 `json:"channel"`
+	SessionID string `json:"session_id"`
+	Reason    string `json:"reason"`
+}
+
+type EventsLagged struct {
+	T   string `json:"t"`
+	Seq uint64 `json:"seq"`
+}
+
+// Response is the decoded envelope of a "res" message. The result fields stay
+// in the raw message; decode them with json.Unmarshal into the result type.
+type Response struct {
+	T     string  `json:"t"`
+	Re    *uint64 `json:"re"`
+	OK    bool    `json:"ok"`
+	Error *Error  `json:"error,omitempty"`
+}
+
+// MarshalResult encodes a success response. result must marshal to a JSON
+// object, or be nil.
+func MarshalResult(re uint64, result any) ([]byte, error) {
+	prefix := `{"t":"res","re":` + strconv.FormatUint(re, 10) + `,"ok":true`
+	if result == nil {
+		return []byte(prefix + "}"), nil
+	}
+	body, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	if len(body) < 2 || body[0] != '{' {
+		return nil, fmt.Errorf("proto: result %T is not a JSON object", result)
+	}
+	if len(body) == 2 {
+		return []byte(prefix + "}"), nil
+	}
+	out := make([]byte, 0, len(prefix)+len(body))
+	out = append(out, prefix...)
+	out = append(out, ',')
+	return append(out, body[1:]...), nil
+}
+
+// MarshalError encodes a failure response.
+func MarshalError(re uint64, e *Error) []byte {
+	b, _ := json.Marshal(struct {
+		T     string `json:"t"`
+		Re    uint64 `json:"re"`
+		OK    bool   `json:"ok"`
+		Error *Error `json:"error"`
+	}{TResponse, re, false, e})
+	return b
+}
+
+// FormatTime renders t the way the protocol expects: RFC 3339 in UTC with
+// millisecond precision.
+func FormatTime(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000Z07:00")
+}

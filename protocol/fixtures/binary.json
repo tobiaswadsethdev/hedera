@@ -1,0 +1,40 @@
+[
+  {
+    "name": "output, small",
+    "frame_hex": "0100000001000000000000002a6869",
+    "op": "output",
+    "channel": 1,
+    "offset": 42,
+    "payload_hex": "6869"
+  },
+  {
+    "name": "output, large channel and offset",
+    "frame_hex": "01deadbeef0000010000000000e29c93",
+    "op": "output",
+    "channel": 3735928559,
+    "offset": 1099511627776,
+    "payload_hex": "e29c93"
+  },
+  {
+    "name": "output, empty payload",
+    "frame_hex": "01000000070000000000000000",
+    "op": "output",
+    "channel": 7,
+    "offset": 0,
+    "payload_hex": ""
+  },
+  {
+    "name": "input, ctrl-c",
+    "frame_hex": "020000000103",
+    "op": "input",
+    "channel": 1,
+    "payload_hex": "03"
+  },
+  {
+    "name": "input, text",
+    "frame_hex": "02000000026c730d",
+    "op": "input",
+    "channel": 2,
+    "payload_hex": "6c730d"
+  }
+]
