@@ -4,6 +4,7 @@ package ptyx
 
 import (
 	"errors"
+	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
@@ -21,22 +22,33 @@ type unixProcess struct {
 }
 
 // Start starts o.Argv on a new PTY of the requested size.
+//
+// Making the PTY the child's controlling terminal (TIOCSCTTY) has been seen
+// to fail with EPERM once in CI, with no reproduction since. That error is
+// specific to the terminal, not the command, so Start retries once with a
+// fresh PTY before giving up.
 func Start(o Options) (Process, error) {
 	if len(o.Argv) == 0 {
 		return nil, errors.New("ptyx: empty argv")
 	}
+	path, err := exec.LookPath(o.Argv[0])
+	if err != nil {
+		return nil, err
+	}
+	p, err := start(path, o)
+	if errors.Is(err, syscall.EPERM) {
+		slog.Warn("starting a process on a new pty failed with EPERM; retrying with a fresh pty", "argv0", o.Argv[0])
+		p, err = start(path, o)
+	}
+	return p, err
+}
+
+func start(path string, o Options) (Process, error) {
 	p, err := pty.New()
 	if err != nil {
 		return nil, err
 	}
 	if err := p.Resize(o.Cols, o.Rows); err != nil {
-		p.Close()
-		return nil, err
-	}
-	path := o.Argv[0]
-	if lp, err := exec.LookPath(path); err == nil {
-		path = lp
-	} else {
 		p.Close()
 		return nil, err
 	}
