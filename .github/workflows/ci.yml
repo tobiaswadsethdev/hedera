@@ -29,8 +29,6 @@ jobs:
       - run: go test -race ./...
 
   agent-windows:
-    # Windows support lands in Phase 5; until then this keeps the build and
-    # the platform-neutral tests green.
     runs-on: windows-latest
     defaults:
       run:
@@ -42,8 +40,37 @@ jobs:
           go-version-file: agent/go.mod
           cache-dependency-path: agent/go.sum
       - run: go vet ./...
-      - run: go build ./cmd/hedera
-      - run: go test ./internal/proto/ ./internal/pairing/ ./internal/config/ ./cmd/hedera/
+      # Includes the ConPTY session tests in internal/session.
+      - run: go test ./...
+      - name: Smoke test the CLI against a running agent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          go build -o hedera.exe ./cmd/hedera
+          $env:HEDERA_HOME = Join-Path $env:RUNNER_TEMP "hedera-state"
+          $agent = Start-Process -FilePath .\hedera.exe -ArgumentList "run" -PassThru -NoNewWindow `
+            -RedirectStandardError (Join-Path $env:RUNNER_TEMP "agent.log")
+          try {
+            Start-Sleep -Seconds 3
+            $id = .\hedera.exe new -d cmd.exe /d /c "echo smoke-ok& exit /b 5"
+            Start-Sleep -Seconds 3
+            .\hedera.exe ls
+            $s = .\hedera.exe ls --json | ConvertFrom-Json | Where-Object id -eq $id
+            if ($s.exit.code -ne 5) { throw "expected exit code 5, got $($s.exit | ConvertTo-Json)" }
+            $long = .\hedera.exe new -d cmd.exe /d /c "ping -n 60 127.0.0.1 >nul"
+            .\hedera.exe close --kill $long
+            Start-Sleep -Seconds 2
+            $s = .\hedera.exe ls --json | ConvertFrom-Json | Where-Object id -eq $long
+            if ($s.status -ne "exited") { throw "kill did not end the session" }
+            $settings = Join-Path $env:RUNNER_TEMP "settings.json"
+            .\hedera.exe install-hooks --settings $settings
+            $hooks = Get-Content $settings | ConvertFrom-Json
+            if ($hooks.hooks.Stop[0].hooks[0].args[0] -ne "hook") { throw "hooks not in exec form" }
+            .\hedera.exe install-service --print
+          } finally {
+            Stop-Process -Id $agent.Id -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $env:RUNNER_TEMP "agent.log") -ErrorAction SilentlyContinue
+          }
 
   protocol:
     runs-on: ubuntu-latest

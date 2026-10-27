@@ -20,7 +20,7 @@ remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 | 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
 | 3 | iOS app: pairing, machine list, terminal, reconnect | on hold |
 | 4 | Radix + APNs, notifications with reply | server side done; app side waits for phase 3 |
-| 5 | Windows (ConPTY, logon task), hardening | |
+| 5 | Windows (ConPTY, logon task), hardening | in progress |
 
 ## Build
 
@@ -118,6 +118,15 @@ or ends all notify (see [protocol/spec.md §7.3](protocol/spec.md#73-what-notifi
 Sessions you close from a client, agent restarts, and exits right after you
 typed (`exit`, `/exit`) don't. Notifications are queued on disk and retried if
 Radix is unreachable.
+
+## Windows
+
+`hedera` runs on Windows 10 1809 or newer (it needs ConPTY). Sessions default
+to PowerShell 7, then Windows PowerShell, then `cmd.exe`.
+`hedera install-service` registers a Task Scheduler task that starts the agent
+when you log on, in your desktop session, and logs to
+`%AppData%\hedera\hedera.log`. `install-hooks` writes exec-form hooks there,
+which run without a shell.
 
 ## State
 

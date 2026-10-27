@@ -32,6 +32,8 @@ func cmdRun(args []string) error {
 	devLoopback := fs.Bool("dev-loopback", false, "also serve the remote (TLS) API on 127.0.0.1, for testing pairing without Tailscale")
 	verbose := fs.Bool("v", false, "debug logging")
 	logFormat := fs.String("log-format", "text", "log line format: text or json")
+	logFile := fs.String("log-file", "", "append logs to this file instead of stderr")
+	detach := fs.Bool("detach-console", false, "release the console window (Windows; used by install-service)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -43,7 +45,19 @@ func cmdRun(args []string) error {
 	if err != nil {
 		return err
 	}
-	log := logging.New(os.Stderr, format, level)
+	logOut := os.Stderr
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		logOut = f
+	}
+	if *detach {
+		detachConsole()
+	}
+	log := logging.New(logOut, format, level)
 
 	dir, err := config.Dir()
 	if err != nil {

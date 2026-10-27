@@ -33,9 +33,26 @@ var Registrations = []Registration{
 	{Event: "SessionEnd"},
 }
 
-// Command returns the shell command that runs `<exe> hook`.
+// Invocation is how a hook handler runs `<exe> hook`.
+type Invocation struct {
+	Command string
+	Args    []string // set for exec form, which runs without a shell
+}
+
+// Command returns the shell-form command that runs `<exe> hook`. It works on
+// every Claude Code version on macOS and Linux.
 func Command(exe string) string {
 	return shellQuote(exe) + " hook"
+}
+
+// InvocationFor picks the form for an OS. Windows uses exec form, because
+// Claude Code may run shell-form hooks through PowerShell or Git Bash there,
+// which quote differently.
+func InvocationFor(exe, goos string) Invocation {
+	if goos == "windows" {
+		return Invocation{Command: exe, Args: []string{"hook"}}
+	}
+	return Invocation{Command: Command(exe)}
 }
 
 func shellQuote(s string) string {
@@ -196,10 +213,17 @@ func remove(h *Object) error {
 	return nil
 }
 
-func handler(cmd string, r Registration) *Value {
+func handler(inv Invocation, r Registration) *Value {
 	h := NewObject()
 	h.Obj.Set("type", String("command"))
-	h.Obj.Set("command", String(cmd))
+	h.Obj.Set("command", String(inv.Command))
+	if inv.Args != nil {
+		args := NewArray()
+		for _, a := range inv.Args {
+			args.Arr = append(args.Arr, String(a))
+		}
+		h.Obj.Set("args", args)
+	}
 	if r.Async {
 		h.Obj.Set("async", Bool(true))
 	}
@@ -210,8 +234,8 @@ func handler(cmd string, r Registration) *Value {
 }
 
 // Install makes root contain exactly one hedera handler per registered
-// event, running cmd, and leaves everything else as it was.
-func Install(root *Value, cmd string) error {
+// event, running inv, and leaves everything else as it was.
+func Install(root *Value, inv Invocation) error {
 	h, err := hooksObject(root, true)
 	if err != nil {
 		return err
@@ -221,7 +245,7 @@ func Install(root *Value, cmd string) error {
 	}
 	for _, r := range Registrations {
 		group := NewObject()
-		group.Obj.Set("hooks", NewArray(handler(cmd, r)))
+		group.Obj.Set("hooks", NewArray(handler(inv, r)))
 		if existing := h.Get(r.Event); existing != nil {
 			existing.Arr = append(existing.Arr, group)
 		} else {

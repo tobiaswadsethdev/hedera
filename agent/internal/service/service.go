@@ -1,6 +1,6 @@
 // Package service installs `hedera run` as a per-user background service:
-// a launchd agent on macOS and a systemd user unit on Linux. Windows (a logon
-// scheduled task) arrives in Phase 5.
+// a launchd agent on macOS, a systemd user unit on Linux, and a Task
+// Scheduler task that runs at logon on Windows.
 package service
 
 import (
@@ -9,15 +9,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"text/template"
+	"unicode/utf16"
 )
 
 const (
 	LaunchdLabel = "io.github.tobiaswadsethdev.hedera"
 	SystemdUnit  = "hedera.service"
+	TaskName     = "Hedera"
 )
 
 // Unit describes the generated service file.
@@ -33,6 +36,17 @@ func Plan(exe, home string) (Unit, error) {
 		return launchdUnit(exe, home)
 	case "linux":
 		return systemdUnit(exe, home)
+	case "windows":
+		u, err := user.Current()
+		if err != nil {
+			return Unit{}, err
+		}
+		dir, err := os.UserConfigDir()
+		if err != nil {
+			return Unit{}, err
+		}
+		state := filepath.Join(dir, "hedera")
+		return taskUnit(exe, u.Username, state), nil
 	default:
 		return Unit{}, fmt.Errorf("install-service is not supported on %s yet", runtime.GOOS)
 	}
@@ -115,10 +129,23 @@ func Install(u Unit) ([]string, error) {
 	if err := os.MkdirAll(filepath.Dir(u.Path), 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(u.Path, []byte(u.Content), 0o644); err != nil {
+	content := []byte(u.Content)
+	if runtime.GOOS == "windows" {
+		content = utf16LE(u.Content) // what schtasks /XML expects
+	}
+	if err := os.WriteFile(u.Path, content, 0o644); err != nil {
 		return nil, err
 	}
 	switch runtime.GOOS {
+	case "windows":
+		if out, err := exec.Command("schtasks", "/Create", "/TN", TaskName, "/XML", u.Path, "/F").CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("schtasks /Create: %v: %s", err, out)
+		}
+		exec.Command("schtasks", "/End", "/TN", TaskName).Run()
+		if out, err := exec.Command("schtasks", "/Run", "/TN", TaskName).CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("schtasks /Run: %v: %s", err, out)
+		}
+		return []string{"Logs: " + filepath.Join(filepath.Dir(u.Path), "hedera.log")}, nil
 	case "darwin":
 		target := fmt.Sprintf("gui/%d", os.Getuid())
 		// Unload a previous version first; failure just means none was loaded.
@@ -147,6 +174,11 @@ func Install(u Unit) ([]string, error) {
 // Uninstall stops the service and removes the unit.
 func Uninstall(u Unit) error {
 	switch runtime.GOOS {
+	case "windows":
+		exec.Command("schtasks", "/End", "/TN", TaskName).Run()
+		if out, err := exec.Command("schtasks", "/Delete", "/TN", TaskName, "/F").CombinedOutput(); err != nil && !strings.Contains(string(out), "cannot find") {
+			return fmt.Errorf("schtasks /Delete: %v: %s", err, out)
+		}
 	case "darwin":
 		exec.Command("launchctl", "bootout", fmt.Sprintf("gui/%d/%s", os.Getuid(), LaunchdLabel)).Run()
 	case "linux":
@@ -159,4 +191,58 @@ func Uninstall(u Unit) error {
 		exec.Command("systemctl", "--user", "daemon-reload").Run()
 	}
 	return nil
+}
+
+// taskUnit is a Task Scheduler task that starts the agent when the user logs
+// on, in their desktop session (a Windows service could not open shells
+// there). It restarts the agent if it exits with an error.
+func taskUnit(exe, userID, state string) Unit {
+	logPath := filepath.Join(state, "hedera.log")
+	args := `run --detach-console --log-file "` + logPath + `"`
+	content := `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Hedera agent: terminals and Claude Code sessions for the Hedera app</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <UserId>` + xmlEscape(userID) + `</UserId>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>` + xmlEscape(userID) + `</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>999</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>` + xmlEscape(exe) + `</Command>
+      <Arguments>` + xmlEscape(args) + `</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+`
+	return Unit{Path: filepath.Join(state, "hedera-task.xml"), Content: content}
+}
+
+// utf16LE encodes s as UTF-16 little-endian with a byte order mark.
+func utf16LE(s string) []byte {
+	out := []byte{0xFF, 0xFE}
+	for _, u := range utf16.Encode([]rune(s)) {
+		out = append(out, byte(u), byte(u>>8))
+	}
+	return out
 }

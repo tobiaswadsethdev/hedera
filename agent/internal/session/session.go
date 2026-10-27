@@ -180,7 +180,14 @@ func (s *Session) waitLoop(readerDone <-chan struct{}) {
 	}
 	s.mu.Unlock()
 
-	s.log.Info("session exited", "session", s.id, "code", st.Code, "signal", st.Signal)
+	attrs := []any{"session", s.id}
+	if st.Code != nil {
+		attrs = append(attrs, "code", *st.Code)
+	}
+	if st.Signal != "" {
+		attrs = append(attrs, "signal", st.Signal)
+	}
+	s.log.Info("session exited", attrs...)
 	s.m.onExit()
 	close(s.exitedCh)
 }

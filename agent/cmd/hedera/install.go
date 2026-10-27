@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -119,8 +120,8 @@ func cmdInstallHooks(args []string) error {
 		if err != nil {
 			return err
 		}
-		cmd := hooks.Command(exe)
-		edit = func(v *hooks.Value) error { return hooks.Install(v, cmd) }
+		inv := hooks.InvocationFor(exe, runtime.GOOS)
+		edit = func(v *hooks.Value) error { return hooks.Install(v, inv) }
 	}
 	plan, err := hooks.Prepare(path, edit)
 	if err != nil {
