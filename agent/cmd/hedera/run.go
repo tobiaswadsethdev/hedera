@@ -113,6 +113,15 @@ func cmdRun(args []string) error {
 		Log:                log,
 		AllowLoopbackPeers: *devLoopback,
 		Push:               pusher,
+		Allow:              server.Allowlist{Users: cfg.AllowedUsers, Tags: cfg.AllowedTags},
+	}
+	if !srv.Allow.Empty() {
+		bin, err := server.TailscaleCLI()
+		if err != nil {
+			return fmt.Errorf("allowed_users/allowed_tags are set, but %w; install it or remove them from config.json", err)
+		}
+		srv.Whois = server.CLIWhois(bin)
+		log.Info("only admitting allowlisted tailnet peers", "users", cfg.AllowedUsers, "tags", cfg.AllowedTags)
 	}
 	tailnet := &server.TailnetListener{Port: cfg.Port, TLS: tlsCfg, Handler: srv.RemoteHandler(), Log: log}
 	dns := &dnsCache{configured: cfg.DNSName}

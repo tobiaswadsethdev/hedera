@@ -35,6 +35,12 @@ type Config struct {
 	MaxSessions     int    `json:"max_sessions,omitempty"`
 	// DNSName is advertised in pairing QR codes, e.g. "studio.tail1234.ts.net".
 	DNSName string `json:"dns_name,omitempty"`
+	// AllowedUsers and AllowedTags, when either is set, limit remote
+	// connections to tailnet nodes owned by these logins (e.g.
+	// "you@github") or carrying these tags (e.g. "tag:servers"), as
+	// `tailscale whois` reports them.
+	AllowedUsers []string `json:"allowed_users,omitempty"`
+	AllowedTags  []string `json:"allowed_tags,omitempty"`
 }
 
 // Dir returns the state directory: $HEDERA_HOME, else <user config dir>/hedera.

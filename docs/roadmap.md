@@ -10,7 +10,7 @@ and 2 are done; see the [README](../README.md) for what they cover and the
 | 2 | Claude Code hooks, `install-hooks`, Claude session states and events | done |
 | 3 | Hedera iOS app: pairing, machine list, terminal, reconnect | on hold |
 | 4 | Radix push relay, notifications with reply | server side done; see below |
-| 5 | Windows, then hardening | |
+| 5 | Windows, then hardening | done, except the items marked below |
 
 The iOS app comes before Radix (the original brief had them the other way
 round): push can't be tested end to end without the app, which supplies the
@@ -182,15 +182,18 @@ interactive `hedera attach` in a console window.
 
 - ~~Structured logs with redaction~~ (done: `--log-format json`, credential
   masking). Log rotation is left to launchd/journald.
-- Check peer identity inside the tailnet (Tailscale `whois`), not only the
-  address range.
+- ~~Check peer identity inside the tailnet~~ (done: `allowed_users` /
+  `allowed_tags` in `config.json`, checked with `tailscale whois`).
 - Optional end-to-end encrypted push bodies: a key shared in the pairing QR,
   decrypted on the phone by a Notification Service Extension, so Radix and
-  Apple see only ciphertext.
+  Apple see only ciphertext. **Waits for phase 3**: the decrypting half lives
+  in the app, so building the agent half alone can't be tested.
 - ~~Offer `claude --resume` for Claude sessions lost to an agent restart~~
   (done: `session.resumable` / `session.resume`, `hedera resume`).
-- Agent upgrades that refuse to restart while sessions are alive
-  (`install-service` already refuses without `--force`).
+- Agent upgrades that refuse to restart while sessions are alive: covered
+  for now by `install-service` refusing without `--force`, and by resuming
+  Claude sessions afterwards. A dedicated `hedera upgrade` can come with
+  release builds.
 - ~~Revoke a machine from the app~~ (done: `pairing.unpair`).
 
 ## Known risks
