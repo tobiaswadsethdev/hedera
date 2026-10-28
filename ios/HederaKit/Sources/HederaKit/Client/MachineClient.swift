@@ -383,6 +383,24 @@ public final class MachineClient: Identifiable {
     public func unpair() async throws {
         _ = try await online().call(PairingUnpair())
     }
+
+    // MARK: Push (protocol/spec.md section 7)
+
+    /// Whether the agent can send notifications at all.
+    public var supportsPush: Bool { hello?.capabilities.contains("push") ?? false }
+
+    @discardableResult
+    public func configurePush(radixURL: String, pushToken: String, prefs: [String: Bool]? = nil) async throws -> PushStatus {
+        try await online().call(PushConfigure(radixURL: radixURL, pushToken: pushToken, prefs: prefs))
+    }
+
+    public func pushStatus() async throws -> PushStatus {
+        try await online().call(PushStatusRequest())
+    }
+
+    public func removePush() async throws {
+        _ = try await online().call(PushRemove())
+    }
 }
 
 /// A terminal attached to one session. Its cursor outlives connections.

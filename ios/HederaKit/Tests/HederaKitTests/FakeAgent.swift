@@ -25,6 +25,12 @@ final class FakeAgent {
     var scrollback = 1 << 20
     var transports: [FakeTransport] = []
     var refuse: TransportError?
+    var capabilities = ["shell", "push"]
+    /// The push route `push.configure` stored, as protocol/spec.md section 7.
+    var pushRoute: (radixURL: String, token: String, prefs: [String: Bool])?
+    var pushBroken: String?
+    /// Makes `push.configure` fail as if Radix rejected the token.
+    var rejectPushTokens = false
     var unreachableHosts: Set<String> = []
 
     /// Every request the agent received, as decoded JSON.
@@ -156,7 +162,7 @@ final class FakeAgent {
         case "hello":
             let h = HelloResult(protocol: 1, machineID: machineID, bootID: bootID,
                                 agent: AgentInfo(version: "0", os: "darwin", arch: "arm64", hostname: "fake"),
-                                capabilities: ["shell"],
+                                capabilities: capabilities,
                                 limits: Limits(maxSessions: 32, scrollbackBytes: scrollback, maxFrame: 65536),
                                 serverTime: "2026-10-27T21:00:00.000Z")
             reply(h)
@@ -195,12 +201,27 @@ final class FakeAgent {
             reply(EmptyResult())
         case "session.resize":
             reply(EmptyResult())
+        case "push.configure":
+            if rejectPushTokens { return fail(ProtoError.invalidArgument) }
+            pushRoute = (obj["radix_url"] as! String, obj["push_token"] as! String, obj["prefs"] as? [String: Bool] ?? [:])
+            pushBroken = nil
+            reply(pushStatus)
+        case "push.status":
+            reply(pushStatus)
+        case "push.remove":
+            pushRoute = nil
+            reply(EmptyResult())
         case "session.create":
             let sid = addSession()
             reply(SessionCreate.Result(session: sessions[sid]!.session))
         default:
             fail(ProtoError.unknownType)
         }
+    }
+
+    var pushStatus: PushStatus {
+        PushStatus(configured: pushRoute != nil, radixURL: pushRoute?.radixURL, label: "fake",
+                   prefs: pushRoute?.prefs, broken: pushBroken, lastSuccessAt: nil, lastError: nil, queued: 0)
     }
 
     func input(_ data: Data, from t: FakeTransport) {

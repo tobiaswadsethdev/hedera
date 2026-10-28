@@ -34,6 +34,26 @@ private func record(_ id: String = "m_1", token: String = "hdt_t") -> MachineRec
     #expect(!defaults.contains("hdt_canary_value"))
 }
 
+@Test func keychainStoresThePushDevice() throws {
+    let store = KeychainPushDeviceStore(service: "hedera.tests.\(UUID().uuidString)")
+    defer { try? store.delete() }
+    #expect(try store.load() == nil)
+    let d = PushDevice(deviceID: "d_1", deviceSecret: "hrd_s", apnsToken: "ab", environment: .production)
+    try store.save(d)
+    #expect(try store.load() == d)
+    try store.delete()
+    #expect(try store.load() == nil)
+}
+
+@Test func machineRecordsKeepTheirPushLink() throws {
+    let store = KeychainMachineStore(service: "hedera.tests.\(UUID().uuidString)")
+    defer { try? store.delete(machineID: "m_1") }
+    var r = record()
+    r.pushLinkID = "l_1"
+    try store.save(r)
+    #expect(try store.loadAll().first?.pushLinkID == "l_1")
+}
+
 @MainActor
 @Test func pairingTheSameMachineAgainReplacesIt() throws {
     let model = AppModel(store: InMemoryMachineStore())
