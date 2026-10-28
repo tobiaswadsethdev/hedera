@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -44,5 +47,46 @@ func TestParseInterspersed(t *testing.T) {
 	pos, rest, err := parseInterspersed(fs, []string{"s_1", "--kill", "s_2", "--", "-x", "--kill"})
 	if err != nil || !*kill || strings.Join(pos, ",") != "s_1,s_2" || strings.Join(rest, ",") != "-x,--kill" {
 		t.Fatalf("pos %v rest %v kill %v err %v", pos, rest, *kill, err)
+	}
+}
+
+// TestPairingFixtures runs parsePairURL over protocol/fixtures/pairing.json,
+// which the app's tests read too.
+func TestPairingFixtures(t *testing.T) {
+	b, err := os.ReadFile("../../../protocol/fixtures/pairing.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixtures []struct {
+		Name      string   `json:"name"`
+		URL       string   `json:"url"`
+		Valid     bool     `json:"valid"`
+		MachineID string   `json:"machine_id"`
+		NameParam string   `json:"name_param"`
+		Hosts     []string `json:"hosts"`
+		Port      string   `json:"port"`
+		FP        string   `json:"fp"`
+		Code      string   `json:"code"`
+	}
+	if err := json.Unmarshal(b, &fixtures); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fixtures {
+		t.Run(f.Name, func(t *testing.T) {
+			p, err := parsePairURL(f.URL)
+			if !f.Valid {
+				if err == nil {
+					t.Fatalf("accepted %s", f.URL)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := pairURL{machineID: f.MachineID, name: f.NameParam, hosts: f.Hosts, port: f.Port, fp: f.FP, code: f.Code}
+			if !reflect.DeepEqual(p, want) {
+				t.Fatalf("got %+v, want %+v", p, want)
+			}
+		})
 	}
 }

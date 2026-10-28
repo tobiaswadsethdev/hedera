@@ -1,0 +1,43 @@
+[
+  {
+    "name": "tailscale address and MagicDNS name",
+    "url": "hedera://pair?v=1&m=m_abcdefghijklmnop&n=studio&a=100.101.102.103&d=studio.tail1234.ts.net&p=7373&fp=sha256%3AYpYQ0xkqAoEDMHf8hFg4pDkPyLWhv2Ga0O6lZyXcJqc&c=k3m7x2qak3m7x2qak3m7x2qak3m7x2qa",
+    "valid": true,
+    "machine_id": "m_abcdefghijklmnop",
+    "name_param": "studio",
+    "hosts": ["100.101.102.103", "studio.tail1234.ts.net"],
+    "port": "7373",
+    "fp": "sha256:YpYQ0xkqAoEDMHf8hFg4pDkPyLWhv2Ga0O6lZyXcJqc",
+    "code": "k3m7x2qak3m7x2qak3m7x2qak3m7x2qa"
+  },
+  {
+    "name": "two addresses, no MagicDNS name",
+    "url": "hedera://pair?v=1&m=m_x&n=studio&a=100.64.0.1&a=fd7a%3A115c%3Aa1e0%3A%3A1&p=7373&fp=sha256%3Aabc&c=code",
+    "valid": true,
+    "machine_id": "m_x",
+    "name_param": "studio",
+    "hosts": ["100.64.0.1", "fd7a:115c:a1e0::1"],
+    "port": "7373",
+    "fp": "sha256:abc",
+    "code": "code"
+  },
+  {
+    "name": "dev loopback",
+    "url": "hedera://pair?v=1&m=m_x&n=my%20mac&a=127.0.0.1&p=7373&fp=sha256%3Aabc&c=code",
+    "valid": true,
+    "machine_id": "m_x",
+    "name_param": "my mac",
+    "hosts": ["127.0.0.1"],
+    "port": "7373",
+    "fp": "sha256:abc",
+    "code": "code"
+  },
+  {"name": "wrong scheme", "url": "https://pair?v=1&a=z&p=1&fp=x&c=y", "valid": false},
+  {"name": "wrong host", "url": "hedera://pairing?v=1&a=z&p=1&fp=x&c=y", "valid": false},
+  {"name": "future version", "url": "hedera://pair?v=2&a=z&p=1&fp=x&c=y", "valid": false},
+  {"name": "no version", "url": "hedera://pair?a=z&p=1&fp=x&c=y", "valid": false},
+  {"name": "no code", "url": "hedera://pair?v=1&a=z&p=1&fp=x", "valid": false},
+  {"name": "no fingerprint", "url": "hedera://pair?v=1&a=z&p=1&c=y", "valid": false},
+  {"name": "no port", "url": "hedera://pair?v=1&a=z&fp=x&c=y", "valid": false},
+  {"name": "no host", "url": "hedera://pair?v=1&p=1&fp=x&c=y", "valid": false}
+]

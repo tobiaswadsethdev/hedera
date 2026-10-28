@@ -72,6 +72,17 @@ jobs:
             Get-Content (Join-Path $env:RUNNER_TEMP "agent.log") -ErrorAction SilentlyContinue
           }
 
+  hederakit:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ios/HederaKit
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -version && swift --version
+      # Includes the fixture tests that keep the Swift and Go sides in step.
+      - run: swift test
+
   protocol:
     runs-on: ubuntu-latest
     defaults:
