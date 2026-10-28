@@ -504,7 +504,8 @@
           "needs_input": null,
           "last_message_preview": "All 42 tests pass now.",
           "last_error": null,
-          "end_reason": null
+          "end_reason": null,
+          "transcript": true
         },
         "exit": null
       }
@@ -860,6 +861,228 @@
       "t": "session.forget",
       "id": 16,
       "claude_session_id": "7ec57afc-ce84-5d4a-8da9-fd29337062b5"
+    }
+  },
+  {
+    "name": "transcript.subscribe",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "transcript.subscribe",
+      "id": 30,
+      "session_id": "s_4fj7q2m3xa",
+      "since": 120
+    }
+  },
+  {
+    "name": "transcript.subscribe tail",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "transcript.subscribe",
+      "id": 32,
+      "session_id": "s_4fj7q2m3xa",
+      "tail": 50
+    }
+  },
+  {
+    "name": "transcript.subscribe result",
+    "direction": "agent_to_client",
+    "response_to": "transcript.subscribe",
+    "message": {
+      "t": "res",
+      "re": 30,
+      "ok": true,
+      "seq": 129,
+      "first_seq": 1,
+      "reset": false
+    }
+  },
+  {
+    "name": "transcript.subscribe without a transcript",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "res",
+      "re": 30,
+      "ok": false,
+      "error": {
+        "code": "unavailable",
+        "message": "session s_4fj7q2m3xa has no transcript yet"
+      }
+    }
+  },
+  {
+    "name": "transcript",
+    "direction": "agent_to_client",
+    "message": {
+      "t": "transcript",
+      "session_id": "s_4fj7q2m3xa",
+      "entries": [
+        {
+          "seq": 121,
+          "uuid": "0b7d2f3e-1a3c-4e1f-9a52-6c1d2b3e4f50",
+          "ts": "2026-10-28T12:05:01.000Z",
+          "kind": "prompt",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Run the tests and fix what fails"
+            },
+            {
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "seq": 122,
+          "uuid": "4b0c1d2e-3f40-4152-8637-48596a7b8c9d",
+          "ts": "2026-10-28T12:05:03.120Z",
+          "kind": "assistant",
+          "blocks": [
+            {
+              "type": "thinking",
+              "text": "Start with the whole suite."
+            },
+            {
+              "type": "text",
+              "text": "I'll run the tests."
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_01ABCdef",
+              "name": "Bash",
+              "input": {
+                "command": "go test ./...",
+                "description": "Run tests",
+                "timeout": 120000
+              }
+            }
+          ]
+        },
+        {
+          "seq": 123,
+          "uuid": "9e1d2c3b-4a59-4687-b7c8-d9e0f1a2b3c4",
+          "ts": "2026-10-28T12:05:09.500Z",
+          "kind": "tool_result",
+          "blocks": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "toolu_01ABCdef",
+              "is_error": true,
+              "text": "--- FAIL: TestParse (0.00s)\n…",
+              "truncated": true
+            }
+          ]
+        },
+        {
+          "seq": 124,
+          "uuid": "a1b2c3d4-e5f6-4789-8abc-def012345678",
+          "ts": "2026-10-28T12:05:12.000Z",
+          "kind": "assistant",
+          "blocks": [
+            {
+              "type": "tool_use",
+              "id": "toolu_02XYZ",
+              "name": "Edit",
+              "input": {
+                "file_path": "/Users/me/app/parse.go",
+                "old_string": "if n > 0 {",
+                "new_string": "if n >= 0 {",
+                "replace_all": false
+              }
+            }
+          ]
+        },
+        {
+          "seq": 125,
+          "ts": "2026-10-28T12:05:12.300Z",
+          "kind": "tool_result",
+          "blocks": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "toolu_02XYZ",
+              "is_error": false,
+              "text": "The file has been updated.",
+              "images": 1
+            }
+          ]
+        },
+        {
+          "seq": 126,
+          "ts": "2026-10-28T12:05:20.000Z",
+          "kind": "notice",
+          "level": "error",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "API error (overloaded); retrying in 4 s (attempt 1 of 10)"
+            }
+          ]
+        },
+        {
+          "seq": 127,
+          "ts": "2026-10-28T12:05:31.000Z",
+          "kind": "turn_end",
+          "duration_ms": 30000
+        },
+        {
+          "seq": 128,
+          "kind": "divider",
+          "reason": "compact"
+        },
+        {
+          "seq": 129,
+          "kind": "prompt",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "/compact focus on the parser"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "transcript.read",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "transcript.read",
+      "id": 31,
+      "session_id": "s_4fj7q2m3xa",
+      "before": 121,
+      "limit": 1
+    }
+  },
+  {
+    "name": "transcript.read result",
+    "direction": "agent_to_client",
+    "response_to": "transcript.read",
+    "message": {
+      "t": "res",
+      "re": 31,
+      "ok": true,
+      "entries": [
+        {
+          "seq": 120,
+          "uuid": "5f6e7d8c-9b0a-4c1d-8e2f-3a4b5c6d7e8f",
+          "ts": "2026-10-28T12:04:40.000Z",
+          "kind": "assistant",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Done."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "transcript.unsubscribe",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "transcript.unsubscribe",
+      "id": 33,
+      "session_id": "s_4fj7q2m3xa"
     }
   }
 ]

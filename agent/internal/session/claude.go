@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/transcript"
 )
 
 // HookEvent is the subset of a Claude Code hook payload the agent uses. See
@@ -19,6 +20,7 @@ type HookEvent struct {
 	Error                string  `json:"error"` // StopFailure
 	ErrorDetails         *string `json:"error_details"`
 	ToolName             string  `json:"tool_name"` // PermissionRequest
+	TranscriptPath       string  `json:"transcript_path"`
 }
 
 // Hook events the agent reacts to; install-hooks registers exactly these.
@@ -212,6 +214,9 @@ func (s *Session) ApplyHook(ev HookEvent) {
 		}
 	}
 
+	if ev.TranscriptPath != "" {
+		s.followTranscriptLocked(ev)
+	}
 	s.syncStatusLocked()
 	if emit == nil && claudeStateEqual(before, *st) {
 		return
@@ -226,6 +231,27 @@ func (s *Session) ApplyHook(ev HookEvent) {
 	emit.Turn = &turn
 	emit.Session = &snap
 	s.publishLocked(*emit)
+}
+
+// followTranscriptLocked points the session's transcript at the file this
+// hook names. Claude Code moves to a new file on /clear, --resume and forks;
+// those get a divider.
+func (s *Session) followTranscriptLocked(ev HookEvent) {
+	if s.transcript == nil {
+		s.transcript = transcript.New(s.m.cfg.TranscriptRoots)
+	}
+	reason := ""
+	if ev.HookEventName == HookSessionStart {
+		switch ev.Source {
+		case "clear", "resume", "fork":
+			reason = ev.Source
+		}
+	}
+	if s.transcript.Follow(ev.TranscriptPath, reason) {
+		s.claude.state.Transcript = true
+	} else {
+		s.log.Warn("ignoring transcript outside Claude's projects directory", "session", s.id, "path", ev.TranscriptPath)
+	}
 }
 
 // bind records the Claude session ID from events that arrive before (or
@@ -275,5 +301,5 @@ func claudeStateEqual(a, b proto.ClaudeState) bool {
 	}
 	return a.Status == b.Status && a.Turn == b.Turn && eqs(a.SessionID, b.SessionID) &&
 		eqs(a.LastMessagePreview, b.LastMessagePreview) && eqs(a.EndReason, b.EndReason) &&
-		eqNI(a.NeedsInput, b.NeedsInput) && eqErr(a.LastError, b.LastError)
+		eqNI(a.NeedsInput, b.NeedsInput) && eqErr(a.LastError, b.LastError) && a.Transcript == b.Transcript
 }

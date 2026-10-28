@@ -47,10 +47,11 @@ type conn struct {
 	hello     atomic.Bool
 	closeOnce sync.Once
 
-	mu       sync.Mutex
-	channels map[uint32]*channel
-	nextCh   uint32
-	events   *eventStream
+	mu          sync.Mutex
+	channels    map[uint32]*channel
+	nextCh      uint32
+	events      *eventStream
+	transcripts map[string]*transcriptStream // by session ID
 }
 
 type channel struct {
@@ -70,13 +71,14 @@ type eventStream struct {
 func newConn(s *Server, ws *websocket.Conn, principal string) *conn {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &conn{
-		srv:       s,
-		ws:        ws,
-		principal: principal,
-		log:       s.Log.With("principal", principal),
-		ctx:       ctx,
-		cancel:    cancel,
-		channels:  map[uint32]*channel{},
+		srv:         s,
+		ws:          ws,
+		principal:   principal,
+		log:         s.Log.With("principal", principal),
+		ctx:         ctx,
+		cancel:      cancel,
+		channels:    map[uint32]*channel{},
+		transcripts: map[string]*transcriptStream{},
 	}
 }
 
@@ -128,9 +130,16 @@ func (c *conn) cleanup() {
 	}
 	es := c.events
 	c.events = nil
+	var transcripts []string
+	for id := range c.transcripts {
+		transcripts = append(transcripts, id)
+	}
 	c.mu.Unlock()
 	for _, ch := range chans {
 		c.stopChannel(ch)
+	}
+	for _, id := range transcripts {
+		c.stopTranscript(id)
 	}
 	if es != nil {
 		c.stopEvents(es)
@@ -215,6 +224,10 @@ var handlers = map[string]handler{
 	proto.TSessionResumable:  (*conn).handleResumable,
 	proto.TSessionResume:     (*conn).handleResume,
 	proto.TSessionForget:     (*conn).handleForget,
+
+	proto.TTranscriptSubscribe:   (*conn).handleTranscriptSubscribe,
+	proto.TTranscriptUnsubscribe: (*conn).handleTranscriptUnsubscribe,
+	proto.TTranscriptRead:        (*conn).handleTranscriptRead,
 }
 
 func (c *conn) handleText(data []byte) {
@@ -553,7 +566,7 @@ func Hostname() string {
 }
 
 func (s *Server) capabilities() []string {
-	caps := []string{"shell", "claude"}
+	caps := []string{"shell", "claude", "transcript"}
 	if s.Push != nil {
 		// push_e2e: push.configure takes a push_key (spec section 7.4).
 		caps = append(caps, "push", "push_e2e")

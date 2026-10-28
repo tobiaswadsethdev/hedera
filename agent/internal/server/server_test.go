@@ -757,7 +757,7 @@ func TestHookEndpoint(t *testing.T) {
 func TestHelloAdvertisesClaude(t *testing.T) {
 	h := newHarness(t, nil)
 	c := h.dialLocal(t)
-	if strings.Join(c.Hello.Capabilities, ",") != "shell,claude" {
+	if strings.Join(c.Hello.Capabilities, ",") != "shell,claude,transcript" {
 		t.Fatalf("capabilities %v", c.Hello.Capabilities)
 	}
 }

@@ -40,6 +40,9 @@ nonisolated(unsafe) private let requestTypes: [String: Reply] = [
     SessionResumable.type: request(SessionResumable.self),
     SessionResume.type: request(SessionResume.self),
     SessionForget.type: request(SessionForget.self),
+    TranscriptSubscribe.type: request(TranscriptSubscribe.self),
+    TranscriptUnsubscribe.type: request(TranscriptUnsubscribe.self),
+    TranscriptRead.type: request(TranscriptRead.self),
 ]
 
 nonisolated(unsafe) private let resultTypes: [String: Reply] = [
@@ -52,6 +55,8 @@ nonisolated(unsafe) private let resultTypes: [String: Reply] = [
     PushConfigure.type: result(PushConfigure.Result.self),
     PushStatusRequest.type: result(PushStatusRequest.Result.self),
     SessionResumable.type: result(SessionResumable.Result.self),
+    TranscriptSubscribe.type: result(TranscriptSubscribe.Result.self),
+    TranscriptRead.type: result(TranscriptRead.Result.self),
 ]
 
 nonisolated(unsafe) private let unsolicitedTypes: [String: Roundtrip] = [
@@ -59,6 +64,7 @@ nonisolated(unsafe) private let unsolicitedTypes: [String: Roundtrip] = [
     "lagged": plain(Lagged.self),
     "detached": plain(Detached.self),
     "events.lagged": plain(EventsLagged.self),
+    "transcript": plain(TranscriptMessage.self),
 ]
 
 @Test func messageFixtures() throws {
@@ -94,7 +100,7 @@ nonisolated(unsafe) private let unsolicitedTypes: [String: Roundtrip] = [
         let inbound = try Wire.decodeInbound(try jsonData(message))
         switch (message["t"] as! String, inbound) {
         case ("res", .response), ("event", .event), ("lagged", .lagged), ("detached", .detached),
-             ("events.lagged", .eventsLagged):
+             ("events.lagged", .eventsLagged), ("transcript", .transcript):
             break
         case let (t, got):
             Issue.record("\(t) decoded as \(got)")
