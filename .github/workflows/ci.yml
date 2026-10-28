@@ -100,9 +100,11 @@ jobs:
           udid=$(xcrun simctl list devices available -j \
             | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
           echo "simulator $udid"
+          # CI has no Apple account, so build without the team in Hedera.xcconfig.
           xcodebuild -project Hedera.xcodeproj -scheme Hedera \
             -destination "platform=iOS Simulator,id=$udid" \
             -skipPackagePluginValidation -skipMacroValidation \
+            HEDERA_TEAM_ID= \
             test
 
   protocol:
