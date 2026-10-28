@@ -605,7 +605,8 @@ and revoking the pairing removes it.
 - `prefs` switches kinds off; missing kinds are on. Keys are `shell_exited`,
   `claude_turn_finished`, `claude_needs_input`, `claude_failed`,
   `claude_ended`.
-- `push_key` is optional: 32 random bytes, base64url without padding, that
+- `push_key` is optional, and only for agents that advertise the `push_e2e`
+  capability: 32 random bytes, base64url without padding, that
   the client generated for this route. With it, notification text is
   encrypted end to end (section 7.4) and the result says `encrypted: true`.
   Clients should send a new key every time they configure.

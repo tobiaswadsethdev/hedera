@@ -555,7 +555,8 @@ func Hostname() string {
 func (s *Server) capabilities() []string {
 	caps := []string{"shell", "claude"}
 	if s.Push != nil {
-		caps = append(caps, "push")
+		// push_e2e: push.configure takes a push_key (spec section 7.4).
+		caps = append(caps, "push", "push_e2e")
 	}
 	return caps
 }
