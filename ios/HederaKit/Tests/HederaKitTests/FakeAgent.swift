@@ -31,6 +31,8 @@ final class FakeAgent {
     var pushBroken: String?
     /// Makes `push.configure` fail as if Radix rejected the token.
     var rejectPushTokens = false
+    /// Transcript entries by session; `seq` is the index + 1.
+    var transcripts: [String: [TranscriptEntry]] = [:]
     var unreachableHosts: Set<String> = []
 
     /// Every request the agent received, as decoded JSON.
@@ -95,6 +97,17 @@ final class FakeAgent {
         }
     }
 
+    /// Appends a prompt entry to a session's transcript and sends it to
+    /// subscribers, as the agent does when Claude Code writes.
+    func say(_ id: String, _ text: String, kind: String = TranscriptEntry.Kind.prompt) {
+        let seq = UInt64((transcripts[id]?.count ?? 0) + 1)
+        let e = TranscriptEntry(seq: seq, kind: kind, blocks: [TranscriptBlock(type: "text", text: text)])
+        transcripts[id, default: []].append(e)
+        for t in transports where t.transcripts.contains(id) {
+            t.deliver(.text(try! JSONEncoder().encode(TranscriptMessage(sessionID: id, entries: [e]))))
+        }
+    }
+
     func emit(type: String, session: Session? = nil, sessionID: String? = nil) {
         seq += 1
         let e = Event(seq: seq, ts: "2026-10-27T21:00:00.000Z", type: type, session: session, sessionID: sessionID)
@@ -129,6 +142,7 @@ final class FakeAgent {
         seq = 0
         events = []
         sessions = [:]
+        transcripts = [:]
     }
 
     /// Ends a channel as if the client fell behind, after writing `pending`
@@ -210,6 +224,36 @@ final class FakeAgent {
             input[sid, default: Data()].append(Data((obj["data"] as! String).utf8))
             if obj["submit"] as? Bool == true { input[sid]!.append(13) }
             reply(EmptyResult())
+        case "transcript.subscribe":
+            let sid = obj["session_id"] as! String
+            guard sessions[sid] != nil else { return fail(ProtoError.notFound) }
+            guard let entries = transcripts[sid] else { return fail(ProtoError.unavailable) }
+            let last = UInt64(entries.count)
+            if let since = (obj["since"] as? NSNumber)?.uint64Value {
+                guard since <= last else {
+                    return reply(TranscriptSubscribe.Result(seq: last, firstSeq: 1, reset: true))
+                }
+                reply(TranscriptSubscribe.Result(seq: last, firstSeq: 1, reset: false))
+                t.transcripts.insert(sid)
+                let backlog = Array(entries.dropFirst(Int(since)))
+                if !backlog.isEmpty { t.deliver(.text(try! JSONEncoder().encode(TranscriptMessage(sessionID: sid, entries: backlog)))) }
+            } else {
+                let tail = (obj["tail"] as? NSNumber)?.intValue ?? 200
+                reply(TranscriptSubscribe.Result(seq: last, firstSeq: 1, reset: false))
+                t.transcripts.insert(sid)
+                let backlog = Array(entries.suffix(tail))
+                if !backlog.isEmpty { t.deliver(.text(try! JSONEncoder().encode(TranscriptMessage(sessionID: sid, entries: backlog)))) }
+            }
+        case "transcript.unsubscribe":
+            t.transcripts.remove(obj["session_id"] as! String)
+            reply(EmptyResult())
+        case "transcript.read":
+            let sid = obj["session_id"] as! String
+            let before = Int((obj["before"] as! NSNumber).uint64Value)
+            let limit = (obj["limit"] as? NSNumber)?.intValue ?? 100
+            let entries = transcripts[sid] ?? []
+            let end = max(0, min(before - 1, entries.count))
+            reply(TranscriptRead.Result(entries: Array(entries[max(0, end - limit)..<end])))
         case "push.configure":
             if rejectPushTokens { return fail(ProtoError.invalidArgument) }
             pushRoute = (obj["radix_url"] as! String, obj["push_token"] as! String, obj["push_key"] as? String,
@@ -246,6 +290,7 @@ final class FakeTransport: WebSocketTransport {
     weak var agent: FakeAgent?
     var channels: [UInt32: String] = [:]
     var subscribed = false
+    var transcripts: Set<String> = []
     /// When set, each send takes a random time, as a real network write can.
     var jitter = false
     private var queue: [WSMessage] = []

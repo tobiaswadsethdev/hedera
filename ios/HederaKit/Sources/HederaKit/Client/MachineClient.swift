@@ -64,6 +64,7 @@ public final class MachineClient: Identifiable {
     @ObservationIgnored private var closeError: TransportError?
     @ObservationIgnored private var closeWaiter: CheckedContinuation<TransportError, Never>?
     @ObservationIgnored private var attachments: [ObjectIdentifier: TerminalAttachment] = [:]
+    @ObservationIgnored private var feeds: [String: TranscriptFeed] = [:]
     @ObservationIgnored private var channels: [UInt32: TerminalAttachment] = [:]
 
     public init(record: MachineRecord,
@@ -189,10 +190,15 @@ public final class MachineClient: Identifiable {
             // session it had is gone.
             bootID = h.bootID
             lastSeq = nil
+            // Transcript numbers start over too.
+            for f in feeds.values { f.reset() }
         }
         try await subscribe(conn, since: lastSeq)
         for a in attachments.values where a.ended == nil {
             await attach(a, on: conn, from: a.cursor.resumeOffset)
+        }
+        for f in feeds.values {
+            await subscribe(f, on: conn)
         }
         startPinging(conn)
     }
@@ -250,8 +256,8 @@ public final class MachineClient: Identifiable {
             guard let conn = connection else { return }
             lastSeq = l.seq
             Task { try? await subscribe(conn, since: l.seq) }
-        case .transcript:
-            break // nothing subscribes yet
+        case let .transcript(m):
+            feeds[m.sessionID]?.append(m.entries)
         case let .closed(error):
             for a in channels.values { a.channel = nil }
             channels = [:]
@@ -271,7 +277,13 @@ public final class MachineClient: Identifiable {
                 sessions[i].size = TermSize(cols: c, rows: r)
             }
         default:
-            if let s = e.session { upsert(s) }
+            if let s = e.session {
+                upsert(s)
+                // The transcript became available after the feed was opened.
+                if let f = feeds[s.id], f.unavailable, s.claude?.transcript == true, let conn = connection {
+                    Task { await subscribe(f, on: conn) }
+                }
+            }
         }
     }
 
@@ -289,6 +301,55 @@ public final class MachineClient: Identifiable {
 
     public func session(_ id: String) -> Session? {
         sessions.first { $0.id == id }
+    }
+
+    // MARK: Transcripts (protocol/spec.md section 6.2)
+
+    /// The structured transcript of a Claude session. The feed follows the
+    /// session across reconnects until `close()`; opening it again returns
+    /// the same feed.
+    public func openTranscript(sessionID: String) -> TranscriptFeed {
+        if let f = feeds[sessionID] { return f }
+        let f = TranscriptFeed(sessionID: sessionID, client: self)
+        feeds[sessionID] = f
+        if state == .online, let conn = connection {
+            Task { await subscribe(f, on: conn) }
+        }
+        return f
+    }
+
+    private func subscribe(_ f: TranscriptFeed, on conn: AgentConnection) async {
+        let since = f.lastSeq
+        do {
+            let r = try await conn.call(TranscriptSubscribe(sessionID: f.sessionID, since: since, tail: since == nil ? 200 : nil)) { r in
+                // Runs before the backlog is handled.
+                f.firstSeq = r.firstSeq
+                f.unavailable = false
+                f.loaded = true
+            }
+            if r.reset {
+                f.reset()
+                await subscribe(f, on: conn)
+            }
+        } catch let e as ProtoError where e.code == ProtoError.unavailable {
+            f.unavailable = true
+        } catch {
+            // Not found, or the connection dropped; a reconnect subscribes again.
+        }
+    }
+
+    fileprivate func loadOlder(_ f: TranscriptFeed) async throws {
+        guard let first = f.entries.first?.seq, let conn = connection else { return }
+        let r = try await conn.call(TranscriptRead(sessionID: f.sessionID, before: first, limit: 100))
+        f.prepend(r.entries)
+    }
+
+    fileprivate func close(_ f: TranscriptFeed) {
+        guard feeds[f.sessionID] === f else { return }
+        feeds.removeValue(forKey: f.sessionID)
+        if let conn = connection {
+            Task { _ = try? await conn.call(TranscriptUnsubscribe(sessionID: f.sessionID)) }
+        }
     }
 
     // MARK: Terminals
@@ -472,3 +533,63 @@ public final class TerminalAttachment {
         onEnded?(reason)
     }
 }
+
+/// A Claude session's transcript entries, oldest first. It keeps what it has
+/// across reconnects and resumes from its last entry.
+@MainActor
+@Observable
+public final class TranscriptFeed {
+    public let sessionID: String
+    public private(set) var entries: [TranscriptEntry] = []
+    /// The agent has no transcript for this session yet.
+    public fileprivate(set) var unavailable = false
+    /// The first subscription has answered; until then, entries are loading.
+    public fileprivate(set) var loaded = false
+    public private(set) var isLoadingOlder = false
+    /// The oldest entry the agent still holds.
+    fileprivate(set) var firstSeq: UInt64 = 1
+    @ObservationIgnored private weak var client: MachineClient?
+
+    /// Whether `loadOlder()` has anything to fetch.
+    public var hasOlder: Bool {
+        guard let first = entries.first?.seq else { return false }
+        return first > firstSeq
+    }
+
+    var lastSeq: UInt64? { entries.last?.seq }
+
+    init(sessionID: String, client: MachineClient) {
+        self.sessionID = sessionID
+        self.client = client
+    }
+
+    func append(_ new: [TranscriptEntry]) {
+        let last = lastSeq ?? 0
+        let fresh = new.filter { $0.seq > last }
+        if !fresh.isEmpty { entries.append(contentsOf: fresh) }
+    }
+
+    func prepend(_ old: [TranscriptEntry]) {
+        let first = entries.first?.seq ?? .max
+        let older = old.filter { $0.seq < first }
+        if !older.isEmpty { entries.insert(contentsOf: older, at: 0) }
+    }
+
+    func reset() {
+        entries = []
+        firstSeq = 1
+    }
+
+    /// Fetches up to 100 entries before the oldest one shown.
+    public func loadOlder() async {
+        guard hasOlder, !isLoadingOlder, let client else { return }
+        isLoadingOlder = true
+        defer { isLoadingOlder = false }
+        try? await client.loadOlder(self)
+    }
+
+    public func close() {
+        client?.close(self)
+    }
+}
+
