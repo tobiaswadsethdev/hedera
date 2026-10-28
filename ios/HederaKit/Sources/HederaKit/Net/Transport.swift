@@ -1,4 +1,6 @@
 import Foundation
+import Network
+import os
 
 public enum WSMessage: Equatable, Sendable {
     case text(Data)
@@ -18,6 +20,7 @@ public enum TransportError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unauthorized: "The machine no longer accepts this phone's pairing."
+        case .closed(CloseCode.revoked): "This phone's pairing was revoked on the machine. Pair it again to reconnect."
         case let .closed(code): "Connection closed (\(code))."
         case .pinMismatch: "The machine's certificate changed. Re-pair it to trust the new one."
         case .timeout: "The machine didn't answer in time."
@@ -47,78 +50,208 @@ public protocol WebSocketTransport: AnyObject {
 /// Opens a transport to `host` for `record`.
 public typealias TransportFactory = @MainActor (_ record: MachineRecord, _ host: String) -> WebSocketTransport
 
-/// `URLSessionWebSocketTask` with the subprotocol, bearer token and pinning
-/// the agent requires (protocol/spec.md section 1).
+/// A WebSocket on Network.framework with the subprotocol, bearer token and
+/// pinning the agent requires (protocol/spec.md section 1). Its callbacks run
+/// on the main queue, so its state belongs to the main actor.
 @MainActor
-public final class URLSessionTransport: WebSocketTransport {
-    private let session: URLSession
-    private let task: URLSessionWebSocketTask
-    private var closedLocally: Int?
-
-    public init(record: MachineRecord, host: String) {
-        let delegate = PinnedSessionDelegate(pin: record.fingerprint)
-        session = delegate.makeSession()
-        var req = URLRequest(url: URL(string: "wss://\(host.urlHost):\(record.port)/v1/ws")!)
-        req.timeoutInterval = 10
-        req.setValue(Proto.subprotocol, forHTTPHeaderField: "Sec-WebSocket-Protocol")
-        // Sent only after the delegate has accepted the pinned certificate.
-        req.setValue("Bearer \(record.token)", forHTTPHeaderField: "Authorization")
-        task = session.webSocketTask(with: req)
-        task.maximumMessageSize = Proto.maxTextMessage + 1024
-        task.resume()
+public final class NetworkTransport: WebSocketTransport {
+    private enum Phase {
+        case connecting
+        case ready
+        /// The upgrade failed and we're asking the agent why.
+        case explaining
+        case failed(TransportError)
     }
 
-    public static let factory: TransportFactory = { URLSessionTransport(record: $0, host: $1) }
+    private let record: MachineRecord
+    private let host: String
+    private let connection: NWConnection
+    private let check = PinCheck()
+    private var phase = Phase.connecting
+    private var readyWaiters: [CheckedContinuation<Void, Error>] = []
+    private var closedLocally: Int?
+    /// The close code the agent sent, once it has.
+    private var closedByPeer: Int?
+
+    public init(record: MachineRecord, host: String) {
+        self.record = record
+        self.host = host
+        let ws = NWProtocolWebSocket.Options()
+        ws.autoReplyPing = true
+        ws.maximumMessageSize = Proto.maxTextMessage + 1024
+        ws.setSubprotocols([Proto.subprotocol])
+        // Sent in the upgrade request, after the verify block accepted the key.
+        ws.setAdditionalHeaders([(name: "Authorization", value: "Bearer \(record.token)")])
+        let parameters = PinnedTLS.parameters(pin: record.fingerprint, check: check)
+        parameters.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
+        connection = NWConnection(to: .url(URL(string: "wss://\(host.urlHost):\(record.port)/v1/ws")!), using: parameters)
+        connection.stateUpdateHandler = { [weak self] state in
+            MainActor.assumeIsolated { self?.update(state) }
+        }
+        connection.start(queue: .main)
+    }
+
+    public static let factory: TransportFactory = { NetworkTransport(record: $0, host: $1) }
 
     public func send(_ message: WSMessage) async throws {
-        do {
-            switch message {
-            case let .text(d): try await task.send(.string(String(decoding: d, as: UTF8.self)))
-            case let .binary(d): try await task.send(.data(d))
-            }
-        } catch {
-            throw translate(error)
+        try await ready()
+        switch message {
+        case let .text(d): try await send(d, opcode: .text)
+        case let .binary(d): try await send(d, opcode: .binary)
         }
     }
 
     public func receive() async throws -> WSMessage {
-        do {
-            switch try await task.receive() {
-            case let .string(s): return .text(Data(s.utf8))
-            case let .data(d): return .binary(d)
-            @unknown default: throw TransportError.failed("unknown WebSocket message")
+        try await ready()
+        while true {
+            let (data, opcode, closeCode, error) = await withCheckedContinuation { c in
+                connection.receiveMessage { data, context, _, error in
+                    let meta = context?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata
+                    c.resume(returning: (data, meta?.opcode, meta.map { Self.rawCode($0.closeCode) }, error))
+                }
             }
-        } catch {
-            throw translate(error)
+            switch opcode {
+            case .text: return .text(data ?? Data())
+            case .binary: return .binary(data ?? Data())
+            case .close:
+                closedByPeer = closeCode
+                throw ended(nil)
+            case nil: throw ended(error)
+            default: continue // ping, pong, continuation
+            }
         }
     }
 
     public func sendPing() async throws {
-        let task = self.task
+        try await ready()
+        let meta = NWProtocolWebSocket.Metadata(opcode: .ping)
+        let once = Once()
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
-            task.sendPing { error in
-                if let error { c.resume(throwing: error) } else { c.resume() }
+            meta.setPongHandler(.main) { error in
+                once.run { if let error { c.resume(throwing: error) } else { c.resume() } }
             }
+            let context = NWConnection.ContentContext(identifier: "ping", metadata: [meta])
+            connection.send(content: Data(), contentContext: context, isComplete: true, completion: .contentProcessed { error in
+                if let error { once.run { c.resume(throwing: error) } }
+            })
         }
     }
 
     public func close(code: Int) {
-        closedLocally = closedLocally ?? code
-        task.cancel(with: URLSessionWebSocketTask.CloseCode(rawValue: code) ?? .normalClosure, reason: nil)
-        session.invalidateAndCancel()
+        guard closedLocally == nil else { return }
+        closedLocally = code
+        guard case .ready = phase else {
+            connection.cancel()
+            return
+        }
+        let meta = NWProtocolWebSocket.Metadata(opcode: .close)
+        meta.closeCode = (try? NWProtocolWebSocket.CloseCode(rawValue: UInt16(clamping: code))) ?? .protocolCode(.normalClosure)
+        let context = NWConnection.ContentContext(identifier: "close", metadata: [meta])
+        let connection = self.connection
+        connection.send(content: nil, contentContext: context, isComplete: true, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
     }
 
-    private func translate(_ error: Error) -> TransportError {
-        if let e = error as? TransportError { return e }
-        if let code = closedLocally { return .closed(code) }
-        if let http = task.response as? HTTPURLResponse, http.statusCode == 401 { return .unauthorized }
-        if task.closeCode != .invalid { return .closed(task.closeCode.rawValue) }
-        if let u = error as? URLError {
-            // Our pinning delegate cancels the challenge, which surfaces as
-            // .cancelled before any HTTP response exists.
-            if u.code == .cancelled, task.response == nil { return .pinMismatch }
-            if u.code == .timedOut { return .timeout }
+    private func send(_ data: Data, opcode: NWProtocolWebSocket.Opcode) async throws {
+        let context = NWConnection.ContentContext(identifier: "message", metadata: [NWProtocolWebSocket.Metadata(opcode: opcode)])
+        let error: NWError? = await withCheckedContinuation { c in
+            connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { c.resume(returning: $0) })
         }
-        return .failed(error.localizedDescription)
+        if let error { throw ended(error) }
+    }
+
+    private func ready() async throws {
+        switch phase {
+        case .ready: return
+        case let .failed(e): throw e
+        case .connecting, .explaining: try await withCheckedThrowingContinuation { readyWaiters.append($0) }
+        }
+    }
+
+    private func update(_ state: NWConnection.State) {
+        switch state {
+        case .ready:
+            guard case .connecting = phase else { return }
+            phase = .ready
+            resumeWaiters(nil)
+        case let .waiting(error), let .failed(error):
+            // .waiting means no route; MachineClient retries on its own schedule.
+            fail(error)
+        case .cancelled:
+            fail(nil)
+        default:
+            break
+        }
+    }
+
+    private func fail(_ error: NWError?) {
+        switch phase {
+        case .failed, .explaining: return
+        default: break
+        }
+        let wasReady = if case .ready = phase { true } else { false }
+        connection.cancel()
+        if !wasReady, closedLocally == nil, check.outcome == .matched {
+            // TLS succeeded but the upgrade didn't. Network.framework doesn't
+            // say why; ask the agent the same question over plain HTTP to tell
+            // a revoked token (401) from anything else.
+            phase = .explaining
+            Task { await explainFailedUpgrade(error) }
+            return
+        }
+        settle(ended(error))
+    }
+
+    private func explainFailedUpgrade(_ error: NWError?) async {
+        let status = try? await PinnedHTTP.request(
+            host: host, port: record.port, pin: record.fingerprint, method: "GET", path: "/v1/ws",
+            headers: [("Authorization", "Bearer \(record.token)")]).status
+        settle(status == 401 ? .unauthorized : .failed(error?.localizedDescription ?? "WebSocket upgrade failed"))
+    }
+
+    private func settle(_ error: TransportError) {
+        phase = .failed(error)
+        resumeWaiters(error)
+    }
+
+    private func resumeWaiters(_ error: TransportError?) {
+        let waiters = readyWaiters
+        readyWaiters = []
+        for w in waiters {
+            if let error { w.resume(throwing: error) } else { w.resume() }
+        }
+    }
+
+    /// The error for a connection that has ended, preferring what we know
+    /// about why over what Network.framework reports.
+    private func ended(_ error: NWError?) -> TransportError {
+        if case let .failed(e) = phase, closedLocally == nil, closedByPeer == nil { return e }
+        if let code = closedLocally { return .closed(code) }
+        if let code = closedByPeer { return .closed(code) }
+        if check.outcome == .mismatched { return .pinMismatch }
+        if case .posix(.ETIMEDOUT) = error { return .timeout }
+        return .failed(error?.localizedDescription ?? "connection closed")
+    }
+
+    private nonisolated static func rawCode(_ code: NWProtocolWebSocket.CloseCode) -> Int {
+        switch code {
+        case let .protocolCode(d): Int(d.rawValue)
+        case let .applicationCode(c), let .privateCode(c): Int(c)
+        @unknown default: 1000
+        }
+    }
+}
+
+/// Runs a closure at most once, from any thread.
+private final class Once: Sendable {
+    private let done = OSAllocatedUnfairLock(initialState: false)
+
+    func run(_ body: () -> Void) {
+        let first = done.withLock { done in
+            defer { done = true }
+            return !done
+        }
+        if first { body() }
     }
 }

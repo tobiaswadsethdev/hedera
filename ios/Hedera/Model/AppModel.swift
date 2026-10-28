@@ -19,7 +19,7 @@ final class AppModel {
         version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
         platform: "ios")
 
-    init(store: MachineStore = KeychainMachineStore(), transport: @escaping TransportFactory = URLSessionTransport.factory) {
+    init(store: MachineStore = KeychainMachineStore(), transport: @escaping TransportFactory = NetworkTransport.factory) {
         self.store = store
         self.transport = transport
         do {

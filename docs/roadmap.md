@@ -33,8 +33,8 @@ a real iPhone over Tailscale, and QR scanning with a real camera. See
   fingerprint and addresses in the Keychain. One entry per machine; removing a
   machine deletes its Keychain item.
 - **Face ID lock** whenever the app opens or returns from the background.
-- **Machine list**: one WebSocket per machine (`URLSessionWebSocketTask`,
-  subprotocol `hedera.v1`, bearer token, pinning in the session delegate).
+- **Machine list**: one WebSocket per machine (Network.framework,
+  subprotocol `hedera.v1`, bearer token, pinning in the TLS verify block).
   Shows online/offline and a summary of each machine's sessions.
 - **Machine detail**: shells and Claude sessions with live status from
   `events.subscribe`. Create a shell or Claude session (cwd, optional command),

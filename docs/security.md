@@ -82,6 +82,12 @@ The agent uses a self-signed ECDSA P-256 certificate (TLS 1.3 only) and clients
 pin `sha256(SubjectPublicKeyInfo)` from the QR code. A wrong pin aborts the
 handshake before any credential is sent.
 
+The iOS app connects with Network.framework, not URLSession. URLSession applies
+App Transport Security, which re-checks a pinned certificate against the system
+trust store and rejects the agent's self-signed one on any address but
+loopback. ATS stays on; the app's connections to agents don't go through it, and
+the pin in the TLS verify block is the only check.
+
 ## State files
 
 The state directory is mode 0700; `local.token`, `pairings.json`,
