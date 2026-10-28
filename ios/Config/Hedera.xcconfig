@@ -10,6 +10,6 @@ HEDERA_TEAM_ID = 5CLNYT78JN
 
 // The push relay (relay/README.md), as a host name: xcconfig treats // as a
 // comment, so no https://. Empty builds an app without notifications.
-HEDERA_RADIX_HOST =
+HEDERA_RADIX_HOST = radix.twadseth.workers.dev
 
 #include? "Signing.local.xcconfig"
