@@ -20,8 +20,8 @@ xcodebuild -project Hedera.xcodeproj -scheme Hedera \
 cd HederaKit && swift test    # HederaKit alone, on the Mac
 ```
 
-The bundle ID and team are placeholders (`com.example.hedera`, no team) in
-`Config/Hedera.xcconfig`. To run on your phone, put your own in
+The bundle ID (`com.sprigbyte.hedera`) and team are set in
+`Config/Hedera.xcconfig`. To sign under another team, override them in
 `Config/Signing.local.xcconfig`, which git ignores:
 
 ```

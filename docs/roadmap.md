@@ -64,11 +64,10 @@ the Swift and Go sides can't drift apart. CI gets a macOS job that builds the
 app for the simulator and runs the HederaKit tests. On-device testing is
 manual.
 
-### Decisions still needed
+### Decisions
 
-- Bundle ID and Apple Team ID (placeholders in `ios/Config/Hedera.xcconfig`
-  until then).
-- Minimum iOS version; iOS 17 proposed and used for now.
+- Bundle ID `com.sprigbyte.hedera`, team `5CLNYT78JN` (`ios/Config/Hedera.xcconfig`).
+- Minimum iOS version still to decide; iOS 17 proposed and used for now.
 
 ### Done when
 
