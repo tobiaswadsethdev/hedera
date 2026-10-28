@@ -80,6 +80,27 @@ private func makeClient(_ agent: FakeAgent) -> MachineClient {
         client.suspend()
     }
 
+    @Test func keystrokesArriveInOrder() async throws {
+        let agent = FakeAgent()
+        let sid = agent.addSession()
+        let client = makeClient(agent)
+        client.resume()
+        let term = client.openTerminal(sessionID: sid, size: nil, sink: RecordingSink())
+        try await eventually("attached") { term.isAttached }
+        agent.transports.last!.jitter = true
+        // Keystrokes reach the terminal from different paths (software
+        // keyboard, hardware keys, accessory row) at different priorities.
+        let text = "echo hedera | rev\r"
+        for (i, ch) in text.enumerated() {
+            let priority: TaskPriority = i % 2 == 0 ? .userInitiated : .utility
+            Task(priority: priority) { term.send(Data(String(ch).utf8)) }
+            await Task.yield()
+        }
+        try await eventually("all input") { agent.input[sid]?.count == text.utf8.count }
+        #expect(String(decoding: agent.input[sid]!, as: UTF8.self) == text)
+        client.suspend()
+    }
+
     @Test func duplicateOutputIsTrimmed() async throws {
         let agent = FakeAgent()
         let sid = agent.addSession(output: "abc")

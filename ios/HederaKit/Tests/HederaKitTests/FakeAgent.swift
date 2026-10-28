@@ -214,6 +214,8 @@ final class FakeTransport: WebSocketTransport {
     weak var agent: FakeAgent?
     var channels: [UInt32: String] = [:]
     var subscribed = false
+    /// When set, each send takes a random time, as a real network write can.
+    var jitter = false
     private var queue: [WSMessage] = []
     private var waiter: CheckedContinuation<WSMessage, Error>?
     private var failure: TransportError?
@@ -242,6 +244,7 @@ final class FakeTransport: WebSocketTransport {
     }
 
     func send(_ message: WSMessage) async throws {
+        if jitter { try await Task.sleep(for: .microseconds(Int.random(in: 0...2000))) }
         if let failure { throw failure }
         switch message {
         case let .text(d): agent?.handle(d, from: self)

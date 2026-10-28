@@ -21,6 +21,8 @@ public final class AgentConnection {
     private var nextID: UInt64 = 1
     private var pending: [UInt64: Pending] = [:]
     private var receiver: Task<Void, Never>?
+    private var sender: Task<Void, Never>?
+    private let outbox: AsyncStream<WSMessage>.Continuation
     private var closed = false
     private let onEvent: (ConnectionEvent) -> Void
 
@@ -33,7 +35,23 @@ public final class AgentConnection {
     public init(transport: WebSocketTransport, onEvent: @escaping (ConnectionEvent) -> Void) {
         self.transport = transport
         self.onEvent = onEvent
+        let (stream, outbox) = AsyncStream.makeStream(of: WSMessage.self)
+        self.outbox = outbox
         receiver = Task { [weak self] in await self?.receiveLoop() }
+        sender = Task { [weak self] in await self?.sendLoop(stream) }
+    }
+
+    /// Sends queued messages one at a time, in the order they were queued.
+    /// Keystrokes from separate Tasks could otherwise overtake each other.
+    private func sendLoop(_ stream: AsyncStream<WSMessage>) async {
+        for await message in stream {
+            do {
+                try await transport.send(message)
+            } catch {
+                finish(error as? TransportError ?? .failed(error.localizedDescription))
+                return
+            }
+        }
     }
 
     /// Sends `hello` and fails unless the agent agrees on a version within `timeout`.
@@ -57,26 +75,18 @@ public final class AgentConnection {
                     if let r = try? JSONDecoder().decode(R.Result.self, from: raw) { hook(r) }
                 }
             })
-            Task {
-                do {
-                    try await transport.send(.text(data))
-                } catch {
-                    pending.removeValue(forKey: id)?.continuation.resume(throwing: error)
-                }
-            }
+            outbox.yield(.text(data))
         }
         return try JSONDecoder().decode(R.Result.self, from: raw)
     }
 
     public func sendInput(channel: UInt32, _ bytes: Data) {
         guard !closed, !bytes.isEmpty else { return }
-        let transport = self.transport
         var rest = bytes[...]
         while !rest.isEmpty {
             let chunk = rest.prefix(Proto.maxPayload)
             rest = rest.dropFirst(chunk.count)
-            let frame = Frame.input(channel: channel, payload: Data(chunk)).encode()
-            Task { try? await transport.send(.binary(frame)) }
+            outbox.yield(.binary(Frame.input(channel: channel, payload: Data(chunk)).encode()))
         }
     }
 
@@ -150,6 +160,8 @@ public final class AgentConnection {
         guard !closed else { return }
         closed = true
         receiver?.cancel()
+        outbox.finish()
+        sender?.cancel()
         let waiting = pending
         pending = [:]
         for p in waiting.values { p.continuation.resume(throwing: error) }
