@@ -1,0 +1,89 @@
+# XcodeGen project: `cd ios && xcodegen`, then open Hedera.xcodeproj.
+# The .xcodeproj is generated and not checked in.
+
+name: Hedera
+options:
+  deploymentTarget:
+    iOS: "17.0" # proposed minimum; see docs/roadmap.md "Decisions still needed"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+configFiles:
+  Debug: Config/Hedera.xcconfig
+  Release: Config/Hedera.xcconfig
+
+packages:
+  HederaKit:
+    path: HederaKit
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.20.0
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Hedera:
+    type: application
+    platform: iOS
+    sources:
+      - Hedera
+    dependencies:
+      - package: HederaKit
+      - package: SwiftTerm
+    info:
+      path: Hedera/Info.plist
+      properties:
+        CFBundleDisplayName: Hedera
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSCameraUsageDescription: Hedera uses the camera to scan the pairing code shown by `hedera pair`.
+        NSFaceIDUsageDescription: Hedera locks with Face ID because it can run commands on your computers.
+        CFBundleURLTypes:
+          - CFBundleURLName: hedera-pair
+            CFBundleURLSchemes: [hedera]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(HEDERA_BUNDLE_ID)
+        DEVELOPMENT_TEAM: $(HEDERA_TEAM_ID)
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: true
+
+  HederaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - HederaTests
+    dependencies:
+      - target: Hedera
+      - package: HederaKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(HEDERA_BUNDLE_ID).tests
+        DEVELOPMENT_TEAM: $(HEDERA_TEAM_ID)
+        GENERATE_INFOPLIST_FILE: true
+
+schemes:
+  Hedera:
+    build:
+      targets:
+        Hedera: all
+    test:
+      targets:
+        - HederaTests

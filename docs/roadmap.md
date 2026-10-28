@@ -8,7 +8,7 @@ and 2 are done; see the [README](../README.md) for what they cover and the
 |---|---|---|
 | 1 | Protocol v1, agent on macOS/Linux, pairing, CLI client | done |
 | 2 | Claude Code hooks, `install-hooks`, Claude session states and events | done |
-| 3 | Hedera iOS app: pairing, machine list, terminal, reconnect | on hold |
+| 3 | Hedera iOS app: pairing, machine list, terminal, reconnect | built; on-device testing next |
 | 4 | Radix push relay, notifications with reply | server side done; see below |
 | 5 | Windows, then hardening | done, except the items marked below |
 
@@ -17,6 +17,14 @@ round): push can't be tested end to end without the app, which supplies the
 APNs device token, while the app's core needs only the agent.
 
 ## Phase 3: Hedera iOS app
+
+**Status.** Built and tested in the simulator against `hedera run
+--dev-loopback`: pairing from a `hedera://pair` link, live session status,
+shells typed into with the accessory row, and backgrounding and returning with
+nothing lost or duplicated. HederaKit's tests cover the reconnect rules
+against a fake agent, plus an opt-in run against a real one. Not yet tried:
+a real iPhone over Tailscale, and QR scanning with a real camera. See
+[ios/README.md](../ios/README.md).
 
 ### Scope
 
@@ -58,8 +66,9 @@ manual.
 
 ### Decisions still needed
 
-- Bundle ID and Apple Team ID (placeholders until then).
-- Minimum iOS version; iOS 17 proposed.
+- Bundle ID and Apple Team ID (placeholders in `ios/Config/Hedera.xcconfig`
+  until then).
+- Minimum iOS version; iOS 17 proposed and used for now.
 
 ### Done when
 
