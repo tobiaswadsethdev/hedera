@@ -12,6 +12,8 @@ public struct MachineRecord: Codable, Equatable, Identifiable, Sendable {
     public var pairingID: String
     public var token: String
     public var addedAt: Date
+    /// This phone's Radix link for the machine, while notifications are on.
+    public var pushLinkID: String?
 
     public var id: String { machineID }
 
@@ -20,6 +22,7 @@ public struct MachineRecord: Codable, Equatable, Identifiable, Sendable {
         case machineID = "machine_id"
         case pairingID = "pairing_id"
         case addedAt = "added_at"
+        case pushLinkID = "push_link_id"
     }
 
     public init(machineID: String, name: String, hosts: [String], port: String, fingerprint: String,
@@ -41,7 +44,7 @@ extension MachineRecord: CustomStringConvertible, CustomDebugStringConvertible, 
     public var debugDescription: String { description }
     public var customMirror: Mirror {
         Mirror(self, children: ["machineID": machineID, "name": name, "hosts": hosts, "port": port,
-                                "pairingID": pairingID, "token": "<redacted>"])
+                                "pairingID": pairingID, "token": "<redacted>", "pushLinkID": pushLinkID as Any])
     }
 }
 
@@ -62,11 +65,33 @@ public struct KeychainError: Error, LocalizedError {
 /// unlock (so a notification reply can connect while the phone is locked),
 /// never leave this device, and are not synced to iCloud.
 public struct KeychainMachineStore: MachineStore {
-    public let service: String
+    private let items: KeychainItems
 
     public init(service: String = "hedera.machines") {
-        self.service = service
+        items = KeychainItems(service: service)
     }
+
+    public func loadAll() throws -> [MachineRecord] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try items.all().compactMap { try? decoder.decode(MachineRecord.self, from: $0) }
+            .sorted { $0.addedAt < $1.addedAt }
+    }
+
+    public func save(_ record: MachineRecord) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try items.set(encoder.encode(record), account: record.machineID)
+    }
+
+    public func delete(machineID: String) throws {
+        try items.delete(account: machineID)
+    }
+}
+
+/// Generic-password items under one service, keyed by account.
+struct KeychainItems {
+    let service: String
 
     private var base: [String: Any] {
         var q: [String: Any] = [
@@ -81,7 +106,7 @@ public struct KeychainMachineStore: MachineStore {
         return q
     }
 
-    public func loadAll() throws -> [MachineRecord] {
+    func all() throws -> [Data] {
         var q = base
         q[kSecMatchLimit as String] = kSecMatchLimitAll
         q[kSecReturnData as String] = true
@@ -89,18 +114,23 @@ public struct KeychainMachineStore: MachineStore {
         let status = SecItemCopyMatching(q as CFDictionary, &out)
         if status == errSecItemNotFound { return [] }
         guard status == errSecSuccess, let items = out as? [Data] else { throw KeychainError(status: status) }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return items.compactMap { try? decoder.decode(MachineRecord.self, from: $0) }
-            .sorted { $0.addedAt < $1.addedAt }
+        return items
     }
 
-    public func save(_ record: MachineRecord) throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(record)
+    func get(account: String) throws -> Data? {
         var q = base
-        q[kSecAttrAccount as String] = record.machineID
+        q[kSecAttrAccount as String] = account
+        q[kSecReturnData as String] = true
+        var out: CFTypeRef?
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let data = out as? Data else { throw KeychainError(status: status) }
+        return data
+    }
+
+    func set(_ data: Data, account: String) throws {
+        var q = base
+        q[kSecAttrAccount as String] = account
         let update: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
@@ -113,9 +143,9 @@ public struct KeychainMachineStore: MachineStore {
         guard status == errSecSuccess else { throw KeychainError(status: status) }
     }
 
-    public func delete(machineID: String) throws {
+    func delete(account: String) throws {
         var q = base
-        q[kSecAttrAccount as String] = machineID
+        q[kSecAttrAccount as String] = account
         let status = SecItemDelete(q as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError(status: status) }
     }
