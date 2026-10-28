@@ -7,6 +7,7 @@ struct NotificationSettings: View {
     let machine: MachineClient
     @Environment(AppModel.self) private var model
     @State private var prefs: [String: Bool] = [:]
+    @State private var encrypted = false
     @State private var working = false
     @State private var message: String?
 
@@ -30,6 +31,10 @@ struct NotificationSettings: View {
                 }
             }
             .disabled(!canChange)
+            if isOn, encrypted {
+                Label("Encrypted end to end", systemImage: "lock.fill")
+                    .foregroundStyle(.secondary)
+            }
             if isOn {
                 ForEach(Self.kinds, id: \.key) { kind in
                     Toggle(kind.label, isOn: Binding(get: { prefs[kind.key] ?? true }, set: { value in
@@ -55,14 +60,19 @@ struct NotificationSettings: View {
         } footer: {
             if let message = message ?? model.pushError {
                 Text(message).foregroundStyle(.red)
+            } else if encrypted {
+                Text("When Claude needs you or a session ends, \(machine.record.name) notifies this phone through Hedera's push relay. Only this phone can read the text; the relay and Apple see which kind of notification it is.")
             } else {
                 Text("When Claude needs you or a session ends, \(machine.record.name) notifies this phone through Hedera's push relay. Notifications show the session title and a short message.")
             }
         }
-        .task(id: machine.state) {
-            guard machine.state == .online, isOn, let status = try? await machine.pushStatus() else { return }
-            prefs = status.prefs ?? [:]
-        }
+        .task(id: machine.state) { await loadStatus() }
+    }
+
+    private func loadStatus() async {
+        guard machine.state == .online, isOn, let status = try? await machine.pushStatus() else { return }
+        prefs = status.prefs ?? [:]
+        encrypted = status.encrypted == true
     }
 
     private func change(_ body: @escaping () async throws -> Void) {
@@ -71,6 +81,7 @@ struct NotificationSettings: View {
         Task {
             defer { working = false }
             do { try await body() } catch { message = error.localizedDescription }
+            await loadStatus()
         }
     }
 }

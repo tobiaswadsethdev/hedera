@@ -13,3 +13,5 @@ node_modules/
 xcuserdata/
 /ios/Hedera/Info.plist
 /ios/Hedera/Hedera.entitlements
+/ios/HederaNotificationService/Info.plist
+/ios/HederaNotificationService/HederaNotificationService.entitlements

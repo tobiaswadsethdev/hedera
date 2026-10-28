@@ -92,6 +92,8 @@ public struct KeychainMachineStore: MachineStore {
 /// Generic-password items under one service, keyed by account.
 struct KeychainItems {
     let service: String
+    /// A Keychain access group to keep the items in; nil is the app's own.
+    var accessGroup: String?
 
     private var base: [String: Any] {
         var q: [String: Any] = [
@@ -99,6 +101,7 @@ struct KeychainItems {
             kSecAttrService as String: service,
             kSecAttrSynchronizable as String: false,
         ]
+        if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
         #if os(macOS)
         // Tests on the Mac use the same keychain as the app on iOS.
         q[kSecUseDataProtectionKeychain as String] = true
