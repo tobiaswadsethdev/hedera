@@ -83,9 +83,12 @@ APNs. Left for later:
 
 - Deploying Radix, then the Workers-to-APNs check below (needs your
   Cloudflare account and `.p8` key; `relay/README.md` has the steps).
-- Everything on the phone: registering with Radix, linking machines, sending
-  `push.configure`, notification categories and the reply action. This comes
-  with phase 3.
+- On the phone, built but not yet tried end to end (it needs Radix deployed):
+  registering with Radix, linking machines and sending `push.configure`,
+  per-machine and per-kind settings, notification categories, opening a
+  session from a notification, and the lock-screen reply. Delivery via
+  `simctl push`, tapping, and hiding the on-screen session's notifications
+  were checked in the simulator.
 
 ### First: check that Workers can talk to APNs
 

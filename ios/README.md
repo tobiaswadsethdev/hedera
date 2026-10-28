@@ -29,6 +29,27 @@ HEDERA_BUNDLE_ID = com.yourname.hedera
 HEDERA_TEAM_ID = ABCDE12345
 ```
 
+## Notifications
+
+Notifications go through Radix, the push relay in `relay/`. Deploy it first
+(`relay/README.md`), then set its host in `Config/Hedera.xcconfig`:
+
+```
+HEDERA_RADIX_HOST = radix.example.workers.dev
+```
+
+With it empty, the app builds without the Notifications section. Turn
+notifications on per machine on the machine's screen. Builds run from Xcode
+register as `sandbox` with APNs and TestFlight builds as `production`; Radix
+needs to know which, and the app tells it.
+
+To try the app's side without Radix, send a payload straight to the
+simulator, with `machine_id` and `session_id` from a paired machine:
+
+```sh
+xcrun simctl push booted com.sprigbyte.hedera payload.json
+```
+
 ## Try it in the simulator
 
 The simulator reaches the Mac at 127.0.0.1, so run an agent with the remote

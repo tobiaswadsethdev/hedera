@@ -201,6 +201,15 @@ final class FakeAgent {
             reply(EmptyResult())
         case "session.resize":
             reply(EmptyResult())
+        case "session.input":
+            let sid = obj["session_id"] as! String
+            guard let s = sessions[sid] else { return fail(ProtoError.notFound) }
+            if let want = (obj["if_turn"] as? NSNumber)?.intValue, s.session.claude?.turn != want {
+                return fail(ProtoError.stale)
+            }
+            input[sid, default: Data()].append(Data((obj["data"] as! String).utf8))
+            if obj["submit"] as? Bool == true { input[sid]!.append(13) }
+            reply(EmptyResult())
         case "push.configure":
             if rejectPushTokens { return fail(ProtoError.invalidArgument) }
             pushRoute = (obj["radix_url"] as! String, obj["push_token"] as! String, obj["prefs"] as? [String: Bool] ?? [:])

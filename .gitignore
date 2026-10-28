@@ -12,3 +12,4 @@ node_modules/
 /ios/Config/Signing.local.xcconfig
 xcuserdata/
 /ios/Hedera/Info.plist
+/ios/Hedera/Hedera.entitlements

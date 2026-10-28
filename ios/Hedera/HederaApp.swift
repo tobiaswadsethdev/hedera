@@ -3,7 +3,8 @@ import SwiftUI
 
 @main
 struct HederaApp: App {
-    @State private var model = AppModel()
+    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
+    private var model: AppModel { delegate.model }
     @State private var lock = AppLock()
     @State private var pendingPairURL: String?
     @Environment(\.scenePhase) private var scenePhase

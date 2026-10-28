@@ -55,6 +55,13 @@ targets:
           - CFBundleURLName: hedera-pair
             CFBundleURLSchemes: [hedera]
         ITSAppUsesNonExemptEncryption: false
+        HederaRadixHost: $(HEDERA_RADIX_HOST)
+    entitlements:
+      path: Hedera/Hedera.entitlements
+      properties:
+        # Xcode switches this to production when exporting for TestFlight.
+        aps-environment: development
+        com.apple.developer.usernotifications.time-sensitive: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(HEDERA_BUNDLE_ID)

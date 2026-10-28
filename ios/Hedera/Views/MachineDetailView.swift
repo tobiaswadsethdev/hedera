@@ -4,6 +4,7 @@ import SwiftUI
 struct MachineDetailView: View {
     let machine: MachineClient
     @Binding var path: NavigationPath
+    @Environment(AppModel.self) private var model
     @State private var creating: NewSessionKind?
     @State private var resumable: [Resumable] = []
     @State private var error: String?
@@ -67,6 +68,9 @@ struct MachineDetailView: View {
                             }
                     }
                 }
+            }
+            if model.push.isAvailable {
+                NotificationSettings(machine: machine)
             }
         }
         .navigationTitle(machine.record.name)

@@ -171,3 +171,54 @@ private let tokenHex = "ab01ff" + String(repeating: "00", count: 29)
         }
     }
 }
+
+/// The notification reply path: connect from suspended, type, press Enter.
+@MainActor
+@Suite struct ReplyTests {
+    private func client(_ agent: FakeAgent) -> MachineClient {
+        MachineClient(record: agent.record,
+                      clientInfo: ClientInfo(name: "test", version: "0", platform: "ios"),
+                      transport: { agent.makeTransport($0, $1) },
+                      backoff: Backoff(base: .milliseconds(1), cap: .milliseconds(4), floor: .milliseconds(1)),
+                      pingInterval: .seconds(3600))
+    }
+
+    private func claudeSession(_ agent: FakeAgent, turn: Int) -> String {
+        let id = agent.addSession(kind: "claude")
+        agent.sessions[id]!.session.claude = ClaudeState(status: "needs_input", sessionID: nil, turn: turn, needsInput: nil,
+                                                         lastMessagePreview: nil, lastError: nil, endReason: nil)
+        return id
+    }
+
+    @Test func connectsAndTypesTheReply() async throws {
+        let agent = FakeAgent()
+        let sid = claudeSession(agent, turn: 7)
+        let c = client(agent)
+        #expect(c.state == .suspended)
+        try await c.sendWhenOnline(sessionID: sid, text: "yes, go ahead", ifTurn: 7)
+        #expect(agent.input[sid] == Data("yes, go ahead\r".utf8))
+        c.suspend()
+    }
+
+    @Test func aStaleTurnIsRefused() async throws {
+        let agent = FakeAgent()
+        let sid = claudeSession(agent, turn: 8)
+        let c = client(agent)
+        let error = await #expect(throws: ProtoError.self) {
+            try await c.sendWhenOnline(sessionID: sid, text: "too late", ifTurn: 7)
+        }
+        #expect(error?.code == ProtoError.stale)
+        #expect(agent.input[sid] == nil)
+        c.suspend()
+    }
+
+    @Test func givesUpWhenTheMachineIsUnreachable() async throws {
+        let agent = FakeAgent()
+        agent.unreachableHosts = ["100.64.0.1"]
+        let c = client(agent)
+        await #expect(throws: NotConnected.self) {
+            try await c.sendWhenOnline(sessionID: "s_1", text: "x", ifTurn: nil, timeout: .milliseconds(200))
+        }
+        c.suspend()
+    }
+}
