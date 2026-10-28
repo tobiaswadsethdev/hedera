@@ -13,14 +13,14 @@
     {
       "binding": "DB",
       "database_name": "radix",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "801c0671-10e8-4366-a7cf-0cf01e41180f",
       "migrations_dir": "migrations"
     }
   ],
   "vars": {
-    "APNS_KEY_ID": "XXXXXXXXXX",
-    "APNS_TEAM_ID": "XXXXXXXXXX",
-    "APNS_TOPIC": "com.example.hedera",
+    "APNS_KEY_ID": "9M8S43LG8U",
+    "APNS_TEAM_ID": "5CLNYT78JN",
+    "APNS_TOPIC": "com.sprigbyte.hedera",
     // Only honoured for http://127.0.0.1 or http://localhost, for local
     // end-to-end tests against a fake APNs. Leave empty in production.
     "APNS_ORIGIN_OVERRIDE": ""
