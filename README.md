@@ -6,7 +6,7 @@ Control terminals and Claude Code sessions on your computers from an iPhone.
 |---|---|---|
 | `hedera` | [`agent/`](agent) | Go agent on each computer: owns PTYs, serves the WebSocket API over Tailscale, and is also the CLI |
 | Radix | [`relay/`](relay) | Cloudflare Worker that holds the APNs key and delivers push notifications |
-| Hedera app | `ios/` (phase 3) | SwiftUI app with SwiftTerm terminals |
+| Hedera app | [`ios/`](ios) | SwiftUI app with SwiftTerm terminals; [build notes](ios/README.md) |
 | Protocol | [`protocol/`](protocol) | The contract: [spec](protocol/spec.md), JSON Schema, golden fixtures |
 
 Security notes are in [docs/security.md](docs/security.md); the plan for the
@@ -18,7 +18,7 @@ remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 |---|---|---|
 | 1 | Protocol spec, agent on macOS/Linux, pairing, CLI client | done |
 | 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
-| 3 | iOS app: pairing, machine list, terminal, reconnect | on hold |
+| 3 | iOS app: pairing, machine list, terminal, reconnect | built; on-device testing next |
 | 4 | Radix + APNs, notifications with reply | server side done; app side waits for phase 3 |
 | 5 | Windows (ConPTY, logon task), hardening | done, except items that need the app or a Windows desktop |
 

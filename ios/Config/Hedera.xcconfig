@@ -1,0 +1,11 @@
+// Placeholders until the bundle ID and Apple Team ID are decided (see
+// docs/roadmap.md). To sign for a device without committing your team, put
+// your own values in Config/Signing.local.xcconfig (ignored by git):
+//
+//   HEDERA_BUNDLE_ID = com.yourname.hedera
+//   HEDERA_TEAM_ID = ABCDE12345
+
+HEDERA_BUNDLE_ID = com.example.hedera
+HEDERA_TEAM_ID =
+
+#include? "Signing.local.xcconfig"

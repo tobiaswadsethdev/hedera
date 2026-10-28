@@ -83,6 +83,28 @@ jobs:
       # Includes the fixture tests that keep the Swift and Go sides in step.
       - run: swift test
 
+  ios-app:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      # SwiftTerm compiles a Metal shader; newer Xcodes ship the Metal
+      # toolchain as a separate download.
+      - run: xcrun metal --version >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
+      - run: xcodegen
+      - name: Build and test on a simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
+          echo "simulator $udid"
+          xcodebuild -project Hedera.xcodeproj -scheme Hedera \
+            -destination "platform=iOS Simulator,id=$udid" \
+            -skipPackagePluginValidation -skipMacroValidation \
+            test
+
   protocol:
     runs-on: ubuntu-latest
     defaults:
