@@ -53,7 +53,7 @@ against a real agent from `swift test`; see the comment at its top.
 | Path | What |
 |---|---|
 | `HederaKit/Sources/HederaKit/Protocol` | Codable messages and the binary frame codec |
-| `HederaKit/Sources/HederaKit/Net` | SPKI pinning, the WebSocket transport |
+| `HederaKit/Sources/HederaKit/Net` | SPKI pinning, pinned TLS and HTTP on Network.framework, the WebSocket transport |
 | `HederaKit/Sources/HederaKit/Pairing` | `hedera://pair` parsing and `POST /v1/pair` |
 | `HederaKit/Sources/HederaKit/Storage` | Keychain storage of paired machines |
 | `HederaKit/Sources/HederaKit/Client` | `AgentConnection` (one socket) and `MachineClient` (reconnecting, sessions, terminals) |

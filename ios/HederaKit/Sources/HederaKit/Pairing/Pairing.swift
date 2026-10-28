@@ -44,39 +44,31 @@ public enum Pairing {
     /// address in turn. The certificate is pinned to the URL's fingerprint
     /// before the code leaves the phone.
     public static func pair(_ url: PairingURL, deviceName: String) async throws -> MachineRecord {
-        let delegate = PinnedSessionDelegate(pin: url.fingerprint)
-        let session = delegate.makeSession()
-        defer { session.finishTasksAndInvalidate() }
         let body = try JSONEncoder().encode(Request(code: url.code, deviceName: deviceName))
         var lastError: Error = PairingError.unreachable("no address")
         for host in url.hosts {
-            guard let endpoint = URL(string: "https://\(host.urlHost):\(url.port)/v1/pair") else { continue }
-            var req = URLRequest(url: endpoint)
-            req.httpMethod = "POST"
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = body
-            req.timeoutInterval = 10
-            let data: Data, response: URLResponse
+            let response: PinnedHTTP.Response
             do {
-                (data, response) = try await session.data(for: req)
-            } catch let e as URLError where e.code == .cancelled {
-                // Our delegate cancelled the handshake: wrong key. Don't try
-                // other addresses with the same code.
+                response = try await PinnedHTTP.request(
+                    host: host, port: url.port, pin: url.fingerprint, method: "POST", path: "/v1/pair",
+                    headers: [("Content-Type", "application/json")], body: body)
+            } catch TransportError.pinMismatch {
+                // The verify block refused the key. Don't try other
+                // addresses with the same code.
                 throw PairingError.pinMismatch
             } catch {
                 lastError = PairingError.unreachable(error.localizedDescription)
                 continue
             }
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            switch status {
+            switch response.status {
             case 200:
-                let r = try JSONDecoder().decode(Response.self, from: data)
+                let r = try JSONDecoder().decode(Response.self, from: response.body)
                 return MachineRecord(machineID: r.machineID, name: url.name.isEmpty ? r.name : url.name,
                                      hosts: url.hosts, port: url.port, fingerprint: url.fingerprint,
                                      pairingID: r.pairingID, token: r.token)
             case 401: throw PairingError.codeRejected
             case 429: throw PairingError.tooManyAttempts
-            default: throw PairingError.unexpected(status)
+            case let status: throw PairingError.unexpected(status)
             }
         }
         throw lastError

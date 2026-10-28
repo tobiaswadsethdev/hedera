@@ -54,5 +54,13 @@ struct LiveAgentTests {
         try await eventually("revoked") {
             if case .revoked = client.state { true } else { false }
         }
+
+        // Connecting again with the revoked token is refused with 401, which
+        // stops reconnecting rather than retrying.
+        let stale = MachineClient(record: record, clientInfo: ClientInfo(name: "HederaKit-tests", version: "0", platform: "macos"))
+        stale.resume()
+        try await eventually("refused") {
+            if case let .revoked(why) = stale.state { why == TransportError.unauthorized.localizedDescription } else { false }
+        }
     }
 }

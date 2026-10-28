@@ -66,7 +66,7 @@ public final class MachineClient: Identifiable {
 
     public init(record: MachineRecord,
                 clientInfo: ClientInfo,
-                transport: @escaping TransportFactory = URLSessionTransport.factory,
+                transport: @escaping TransportFactory = NetworkTransport.factory,
                 backoff: Backoff = Backoff(),
                 pingInterval: Duration = .seconds(20)) {
         self.record = record
