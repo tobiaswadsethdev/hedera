@@ -5,3 +5,9 @@ node_modules/
 .DS_Store
 .wrangler/
 .dev.vars
+/ios/HederaKit/.build/
+/ios/HederaKit/.swiftpm/
+/ios/*.xcodeproj/
+/ios/build/
+/ios/Config/Signing.local.xcconfig
+xcuserdata/
