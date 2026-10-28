@@ -11,13 +11,23 @@ struct SessionView: View {
     @State private var controller: TerminalController?
     @State private var ended: String?
     @State private var confirmClose = false
+    @State private var feed: TranscriptFeed?
+    /// Chat or terminal for Claude sessions; remembered across sessions.
+    @AppStorage("claudeView") private var claudeView = "chat"
 
     private var session: Session? { machine.session(sessionID) }
+    /// The agent can show this session as a chat.
+    private var canChat: Bool {
+        session?.claude?.transcript == true && machine.hello?.capabilities.contains("transcript") == true
+    }
+    private var showingChat: Bool { canChat && claudeView == "chat" }
 
     var body: some View {
         ZStack(alignment: .top) {
             Color.black.ignoresSafeArea()
-            if let controller {
+            if showingChat, let feed {
+                ChatView(machine: machine, sessionID: sessionID, feed: feed) { switchView(to: "terminal") }
+            } else if let controller {
                 TerminalHost(controller: controller)
                     .ignoresSafeArea(.container, edges: .bottom)
             }
@@ -42,11 +52,23 @@ struct SessionView: View {
                     }
                 }
             }
+            if canChat {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        switchView(to: showingChat ? "terminal" : "chat")
+                    } label: {
+                        Image(systemName: showingChat ? "terminal" : "text.bubble")
+                    }
+                    .accessibilityLabel(showingChat ? "Show Terminal" : "Show Chat")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button {
-                        _ = controller?.view.becomeFirstResponder()
-                    } label: { Label("Show Keyboard", systemImage: "keyboard") }
+                    if !showingChat {
+                        Button {
+                            _ = controller?.view.becomeFirstResponder()
+                        } label: { Label("Show Keyboard", systemImage: "keyboard") }
+                    }
                     if session?.exit == nil {
                         Button(role: .destructive) { confirmClose = true } label: {
                             Label("Close Session", systemImage: "xmark.circle")
@@ -66,6 +88,11 @@ struct SessionView: View {
             }
         } message: {
             Text("The process on \(machine.record.name) is ended.")
+        }
+        .task(id: session?.isClaude) {
+            if session?.isClaude == true, feed == nil {
+                feed = machine.openTranscript(sessionID: sessionID)
+            }
         }
         .onAppear {
             model.visibleSession = (machine.id, sessionID)
@@ -93,9 +120,16 @@ struct SessionView: View {
         }
         .onDisappear {
             if model.visibleSession?.sessionID == sessionID { model.visibleSession = nil }
+            feed?.close()
+            feed = nil
             controller?.stop()
             controller = nil
         }
+    }
+
+    private func switchView(to view: String) {
+        if view == "chat" { _ = controller?.view.resignFirstResponder() }
+        withAnimation(.snappy) { claudeView = view }
     }
 
     @ViewBuilder
