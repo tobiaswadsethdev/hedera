@@ -1,7 +1,7 @@
 // Radix: the Hedera push relay. See protocol/radix-api.md.
 
 import { DEAD_TOKEN_REASONS, sendApns, type Environment } from "./apns";
-import { apnsPayload, KINDS, type Kind } from "./notify";
+import { apnsPayload, KINDS, type Kind, type Notification } from "./notify";
 import {
   badRequest,
   bearer,
@@ -176,7 +176,7 @@ async function testDevice(req: Request, env: RadixEnv, p: Record<string, string>
   const dev = await authDevice(req, env, p.device);
   const payload = apnsPayload(
     { kind: "test", title: "Hedera", body: "Test notification from Radix" },
-    { id: "l_test", machineId: "radix" },
+    { id: "l_test", machineId: "radix", label: "Hedera" },
   );
   const r = await sendApns(env, { token: dev.apns_token, environment: dev.environment }, payload);
   if (r.status === 200 && dev.disabled_at !== null) {
@@ -243,9 +243,13 @@ async function postEvent(req: Request, env: RadixEnv): Promise<Response> {
   const eventId = str(body, "event_id", { max: 100, re: /^[A-Za-z0-9_.:-]+$/ })!;
   const kind = str(body, "kind", { max: 40 })!;
   if (!(kind in KINDS)) throw badRequest(`unknown kind ${JSON.stringify(kind)}`);
-  const title = str(body, "title", { max: 1000 })!;
-  const subtitle = str(body, "subtitle", { max: 1000, optional: true });
-  const text = str(body, "body", { max: 4000 })!;
+  const encrypted = str(body, "encrypted", { max: 3000, re: /^[A-Za-z0-9_-]+$/, optional: true });
+  if (encrypted !== undefined && ["title", "subtitle", "body"].some((k) => body[k] !== undefined && body[k] !== null)) {
+    throw badRequest("send either encrypted or title, subtitle and body");
+  }
+  const title = encrypted === undefined ? str(body, "title", { max: 1000 })! : "";
+  const subtitle = encrypted === undefined ? str(body, "subtitle", { max: 1000, optional: true }) : undefined;
+  const text = encrypted === undefined ? str(body, "body", { max: 4000 })! : "";
   const sessionId = str(body, "session_id", { max: 20, re: /^s_[a-z2-7]{10}$/, optional: true });
   let turn: number | undefined;
   if (body.turn !== undefined && body.turn !== null) {
@@ -266,7 +270,11 @@ async function postEvent(req: Request, env: RadixEnv): Promise<Response> {
   if (!ins.meta.changes) return json(200, { sent: false, reason: "duplicate" });
   if (link.device.disabled_at !== null) return json(200, { sent: false, reason: "device_unregistered" });
 
-  const payload = apnsPayload({ kind: kind as Kind, title, subtitle, body: text, sessionId, turn }, { id: link.id, machineId: link.machine_id });
+  const n: Notification =
+    encrypted !== undefined
+      ? { kind: kind as Kind, encrypted, sessionId, turn }
+      : { kind: kind as Kind, title, subtitle, body: text, sessionId, turn };
+  const payload = apnsPayload(n, { id: link.id, machineId: link.machine_id, label: link.label });
   const r = await sendApns(env, { token: link.device.apns_token, environment: link.device.environment }, payload);
   log("event", { link: link.id, kind, apns_status: r.status, apns_reason: r.reason });
 

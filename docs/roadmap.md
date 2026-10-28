@@ -195,10 +195,12 @@ interactive `hedera attach` in a console window.
   masking). Log rotation is left to launchd/journald.
 - ~~Check peer identity inside the tailnet~~ (done: `allowed_users` /
   `allowed_tags` in `config.json`, checked with `tailscale whois`).
-- Optional end-to-end encrypted push bodies: a key shared in the pairing QR,
-  decrypted on the phone by a Notification Service Extension, so Radix and
-  Apple see only ciphertext. **Waits for phase 3**: the decrypting half lives
-  in the app, so building the agent half alone can't be tested.
+- Optional end-to-end encrypted push bodies, so Radix and Apple see only
+  ciphertext (spec section 7.4). The phone generates a key per push link and
+  sends it with `push.configure` rather than through the pairing QR: that
+  channel is already pinned and encrypted, and every reconfigure rotates the
+  key. Agent and Radix halves done; the app's Notification Service Extension
+  decrypts.
 - ~~Offer `claude --resume` for Claude sessions lost to an agent restart~~
   (done: `session.resumable` / `session.resume`, `hedera resume`).
 - Agent upgrades that refuse to restart while sessions are alive: covered

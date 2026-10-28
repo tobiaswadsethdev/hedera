@@ -275,6 +275,48 @@ describe("events", () => {
     }
   });
 
+  it("sends encrypted events with generic text for the extension to replace", async () => {
+    const d = await device();
+    const l = await link(d.device_secret, MACHINE, "narcissus");
+    const enc = "oKGio6Slpqeoqaqr" + "A".repeat(200);
+    const { title, subtitle, body, ...rest } = event();
+    void title, subtitle, body;
+    const r = await call("POST", "/v1/events", { auth: l.push_token, body: { ...rest, encrypted: enc } });
+    expect(r).toMatchObject({ status: 200, json: { sent: true } });
+    expect(apnsCalls[0].body).toEqual({
+      aps: {
+        alert: { title: "narcissus", body: "Claude needs your input" },
+        sound: "default",
+        category: "CLAUDE_INPUT",
+        "thread-id": `${MACHINE}:s_4fj7q2m3xa`,
+        "interruption-level": "active",
+        "mutable-content": 1,
+      },
+      hedera: { kind: "claude_needs_input", machine_id: MACHINE, link_id: l.link_id, session_id: "s_4fj7q2m3xa", turn: 7, enc },
+    });
+    // The whole payload stays within APNs' 4 KB at the largest ciphertext.
+    apnsCalls = [];
+    await call("POST", "/v1/events", { auth: l.push_token, body: { ...rest, event_id: "b_big-1", encrypted: "A".repeat(3000) } });
+    expect(new TextEncoder().encode(JSON.stringify(apnsCalls[0].body)).length).toBeLessThan(4096);
+  });
+
+  it("refuses encrypted events that also carry text, or bad ciphertext", async () => {
+    const d = await device();
+    const l = await link(d.device_secret);
+    const { title, subtitle, body, ...rest } = event();
+    void subtitle, body;
+    for (const bad of [
+      { ...rest, encrypted: "abc", title },
+      { ...rest, encrypted: "not base64url!" },
+      { ...rest, encrypted: "A".repeat(3001) },
+      { ...rest, encrypted: 42 },
+      rest,
+    ]) {
+      expect((await call("POST", "/v1/events", { auth: l.push_token, body: bad })).status).toBe(400);
+    }
+    expect(apnsCalls).toHaveLength(0);
+  });
+
   it("validates events", async () => {
     const d = await device();
     const l = await link(d.device_secret);

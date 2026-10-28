@@ -2,6 +2,7 @@ package push
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,6 +25,7 @@ import (
 type fakeRadix struct {
 	mu      sync.Mutex
 	events  []Notification
+	raws    []map[string]any
 	tokens  []string
 	replies []func(w http.ResponseWriter)
 	srv     *httptest.Server
@@ -41,10 +43,14 @@ func newFakeRadix(t *testing.T) *fakeRadix {
 			}
 			json.NewEncoder(w).Encode(map[string]any{"link_id": "l_x", "label": "Tobias's iPhone", "device_enabled": true})
 		case "/v1/events":
+			body, _ := io.ReadAll(r.Body)
 			var n Notification
-			json.NewDecoder(r.Body).Decode(&n)
+			var raw map[string]any
+			json.Unmarshal(body, &n)
+			json.Unmarshal(body, &raw)
 			f.mu.Lock()
 			f.events = append(f.events, n)
+			f.raws = append(f.raws, raw)
 			f.tokens = append(f.tokens, tok)
 			var reply func(http.ResponseWriter)
 			if len(f.replies) > 0 {
@@ -109,7 +115,7 @@ func setup(t *testing.T) (*Pusher, *fakeRadix, *clock, string) {
 	c := &clock{t: time.Date(2026, 10, 27, 12, 0, 0, 0, time.UTC)}
 	f := newFakeRadix(t)
 	p := newPusher(t, dir, c)
-	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", nil); err != nil {
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	return p, f, c, dir
@@ -150,7 +156,7 @@ func TestConfigure(t *testing.T) {
 		{f.srv.URL, "hrp_good", proto.CodeInvalidArgument, map[string]bool{"made_up": true}},
 	}
 	for _, c := range cases {
-		if _, err := p.Configure(context.Background(), "p_bbbbbbbb", c.url, c.token, c.prefs); codeOf(err) != c.code {
+		if _, err := p.Configure(context.Background(), "p_bbbbbbbb", c.url, c.token, "", c.prefs); codeOf(err) != c.code {
 			t.Errorf("%s %s: %v, want %s", c.url, c.token, err, c.code)
 		}
 	}
@@ -182,7 +188,7 @@ func TestDeliverSuccess(t *testing.T) {
 
 func TestPrefsFilter(t *testing.T) {
 	p, f, _, _ := setup(t)
-	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", map[string]bool{KindClaudeEnded: false}); err != nil {
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", "", map[string]bool{KindClaudeEnded: false}); err != nil {
 		t.Fatal(err)
 	}
 	for _, k := range []string{KindClaudeEnded, KindClaudeEndedAbnormally} {
@@ -259,7 +265,7 @@ func TestRevokedTokenDisablesRoute(t *testing.T) {
 		t.Fatal("broken route still queues")
 	}
 	// Configuring again repairs it.
-	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", nil); err != nil {
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	if p.Status("p_aaaaaaaa").Broken != "" || p.Enqueue(note(KindTest)) != 1 {
@@ -413,4 +419,65 @@ func TestWatchFollowsBus(t *testing.T) {
 	if len(seen) != 10 {
 		t.Fatalf("duplicate or missing event IDs: %v", seen)
 	}
+}
+
+func TestEncryptedRoute(t *testing.T) {
+	dir := t.TempDir()
+	c := &clock{t: time.Date(2026, 10, 27, 12, 0, 0, 0, time.UTC)}
+	f := newFakeRadix(t)
+	p, err := Open(dir, Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Now: c.now, MachineID: "m_aaaabbbbccccdddd"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyBytes := make([]byte, 32)
+	keyBytes[0] = 7
+	key := base64.RawURLEncoding.EncodeToString(keyBytes)
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", "not-a-key", nil); codeOf(err) != proto.CodeInvalidArgument {
+		t.Fatalf("bad key: %v", err)
+	}
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", key, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !p.Status("p_aaaaaaaa").Encrypted {
+		t.Fatal("status doesn't say encrypted")
+	}
+	// The key survives a restart, like the token.
+	p = newPusherWithID(t, dir, c, "m_aaaabbbbccccdddd")
+
+	n := note(KindClaudeNeedsInput)
+	p.Enqueue(n)
+	p.Deliver(context.Background())
+	if f.count() != 1 {
+		t.Fatalf("%d events", f.count())
+	}
+	raw := f.raws[0]
+	for _, k := range []string{"title", "subtitle", "body"} {
+		if _, ok := raw[k]; ok {
+			t.Errorf("plaintext %s sent to Radix", k)
+		}
+	}
+	if raw["kind"] != KindClaudeNeedsInput || raw["session_id"] != n.SessionID || raw["turn"] != float64(3) || raw["event_id"] != n.EventID {
+		t.Errorf("metadata %v", raw)
+	}
+	title, subtitle, body, err := Decrypt(keyBytes, raw["encrypted"].(string), "m_aaaabbbbccccdddd", n)
+	if err != nil || title != n.Title || subtitle != n.Subtitle || body != n.Body {
+		t.Fatalf("decrypted %q %q %q, %v", title, subtitle, body, err)
+	}
+
+	// Configuring without a key goes back to plaintext.
+	if _, err := p.Configure(context.Background(), "p_aaaaaaaa", f.srv.URL, "hrp_good", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if p.Status("p_aaaaaaaa").Encrypted {
+		t.Fatal("still encrypted")
+	}
+}
+
+func newPusherWithID(t *testing.T, dir string, c *clock, machineID string) *Pusher {
+	t.Helper()
+	p, err := Open(dir, Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Now: c.now, MachineID: machineID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
