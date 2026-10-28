@@ -23,7 +23,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "4"
 
 targets:
   Hedera:
@@ -34,6 +34,7 @@ targets:
     dependencies:
       - package: HederaKit
       - package: SwiftTerm
+      - target: HederaNotificationService
     info:
       path: Hedera/Info.plist
       properties:
@@ -56,12 +57,18 @@ targets:
             CFBundleURLSchemes: [hedera]
         ITSAppUsesNonExemptEncryption: false
         HederaRadixHost: $(HEDERA_RADIX_HOST)
+        HederaKeychainGroup: $(AppIdentifierPrefix)$(HEDERA_BUNDLE_ID).shared
     entitlements:
       path: Hedera/Hedera.entitlements
       properties:
         # Xcode switches this to production when exporting for TestFlight.
         aps-environment: development
         com.apple.developer.usernotifications.time-sensitive: true
+        # The app's own group comes first, so items without an explicit group
+        # (machine records with their tokens) stay out of the shared one.
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(HEDERA_BUNDLE_ID)
+          - $(AppIdentifierPrefix)$(HEDERA_BUNDLE_ID).shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(HEDERA_BUNDLE_ID)
@@ -71,6 +78,38 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_PREVIEWS: true
+
+  # Decrypts end-to-end encrypted notification text (protocol/spec.md
+  # section 7.4). It can read the push keys in the shared Keychain group and
+  # nothing else.
+  HederaNotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - HederaNotificationService
+    dependencies:
+      - package: HederaKit
+    info:
+      path: HederaNotificationService/Info.plist
+      properties:
+        CFBundleDisplayName: Hedera Notifications
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        HederaKeychainGroup: $(AppIdentifierPrefix)$(HEDERA_BUNDLE_ID).shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    entitlements:
+      path: HederaNotificationService/HederaNotificationService.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(HEDERA_BUNDLE_ID).shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(HEDERA_BUNDLE_ID).notificationservice
+        DEVELOPMENT_TEAM: $(HEDERA_TEAM_ID)
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
 
   HederaTests:
     type: bundle.unit-test

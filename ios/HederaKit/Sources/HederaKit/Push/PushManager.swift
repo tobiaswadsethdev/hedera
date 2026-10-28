@@ -31,10 +31,14 @@ public final class PushManager {
 
     @ObservationIgnored private let radix: RadixClient?
     @ObservationIgnored private let store: PushDeviceStore
+    @ObservationIgnored private let keys: PushKeyStore
 
-    public init(radixURL: URL?, store: PushDeviceStore = KeychainPushDeviceStore(), session: URLSession? = nil) {
+    public init(radixURL: URL?, store: PushDeviceStore = KeychainPushDeviceStore(),
+                keys: PushKeyStore = KeychainPushKeyStore(accessGroup: KeychainPushKeyStore.sharedGroup),
+                session: URLSession? = nil) {
         radix = radixURL.map { RadixClient(baseURL: $0, session: session) }
         self.store = store
+        self.keys = keys
         device = try? store.load()
     }
 
@@ -65,7 +69,8 @@ public final class PushManager {
     }
 
     /// Links `machine` to this phone and hands the agent the push token,
-    /// replacing any earlier link. Returns the new link ID.
+    /// replacing any earlier link. Returns the new link ID. Agents that can
+    /// get a fresh key too, and encrypt the text from then on.
     public func enable(_ machine: MachineClient, prefs: [String: Bool]? = nil) async throws -> String {
         guard let radix else { throw PushError.unavailable }
         guard let device else { throw PushError.notRegistered }
@@ -74,12 +79,16 @@ public final class PushManager {
             try? await radix.unlink(old, device: device)
         }
         let link = try await radix.link(machineID: machine.id, label: machine.record.name, device: device)
+        let key = machine.supportsPushEncryption ? PushCrypto.newKey() : nil
         do {
-            try await machine.configurePush(radixURL: radix.baseURL.absoluteString, pushToken: link.pushToken, prefs: prefs)
+            try await machine.configurePush(radixURL: radix.baseURL.absoluteString, pushToken: link.pushToken,
+                                            pushKey: key?.base64URL, prefs: prefs)
         } catch {
+            // The agent kept its old route and key; so does the phone.
             try? await radix.unlink(link.linkID, device: device)
             throw error
         }
+        if let key { try keys.save(key, machineID: machine.id) } else { try? keys.delete(machineID: machine.id) }
         return link.linkID
     }
 
@@ -88,18 +97,21 @@ public final class PushManager {
     /// refused by Radix.
     public func disable(_ machine: MachineClient) async {
         try? await machine.removePush()
+        try? keys.delete(machineID: machine.id)
         if let id = machine.record.pushLinkID, let radix, let device {
             try? await radix.unlink(id, device: device)
         }
     }
 
     /// For a machine that should notify: links it again if the agent lost the
-    /// route or Radix rejected the token. Returns the new link ID, or nil when
-    /// nothing needed doing.
+    /// route, Radix rejected the token, or the agent can encrypt but the route
+    /// has no key yet (or the phone lost it). Returns the new link ID, or nil
+    /// when nothing needed doing.
     public func repairIfNeeded(_ machine: MachineClient) async throws -> String? {
         guard machine.record.pushLinkID != nil, device != nil, machine.supportsPush else { return nil }
         let status = try await machine.pushStatus()
-        if status.configured, status.broken == nil { return nil }
+        let keyed = !machine.supportsPushEncryption || (status.encrypted == true && (try? keys.key(machineID: machine.id)) != nil)
+        if status.configured, status.broken == nil, keyed { return nil }
         return try await enable(machine, prefs: status.prefs)
     }
 

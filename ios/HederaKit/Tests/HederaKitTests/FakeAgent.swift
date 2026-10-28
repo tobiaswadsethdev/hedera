@@ -25,9 +25,9 @@ final class FakeAgent {
     var scrollback = 1 << 20
     var transports: [FakeTransport] = []
     var refuse: TransportError?
-    var capabilities = ["shell", "push"]
+    var capabilities = ["shell", "push", "push_e2e"]
     /// The push route `push.configure` stored, as protocol/spec.md section 7.
-    var pushRoute: (radixURL: String, token: String, prefs: [String: Bool])?
+    var pushRoute: (radixURL: String, token: String, key: String?, prefs: [String: Bool])?
     var pushBroken: String?
     /// Makes `push.configure` fail as if Radix rejected the token.
     var rejectPushTokens = false
@@ -212,7 +212,8 @@ final class FakeAgent {
             reply(EmptyResult())
         case "push.configure":
             if rejectPushTokens { return fail(ProtoError.invalidArgument) }
-            pushRoute = (obj["radix_url"] as! String, obj["push_token"] as! String, obj["prefs"] as? [String: Bool] ?? [:])
+            pushRoute = (obj["radix_url"] as! String, obj["push_token"] as! String, obj["push_key"] as? String,
+                         obj["prefs"] as? [String: Bool] ?? [:])
             pushBroken = nil
             reply(pushStatus)
         case "push.status":
@@ -230,7 +231,8 @@ final class FakeAgent {
 
     var pushStatus: PushStatus {
         PushStatus(configured: pushRoute != nil, radixURL: pushRoute?.radixURL, label: "fake",
-                   prefs: pushRoute?.prefs, broken: pushBroken, lastSuccessAt: nil, lastError: nil, queued: 0)
+                   prefs: pushRoute?.prefs, broken: pushBroken, lastSuccessAt: nil, lastError: nil,
+                   encrypted: pushRoute?.key != nil ? true : nil, queued: 0)
     }
 
     func input(_ data: Data, from t: FakeTransport) {
