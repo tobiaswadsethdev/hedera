@@ -668,10 +668,10 @@ and revoking the pairing removes it.
 
 ```json
 → {"t":"push.configure","id":11,"radix_url":"https://radix.example.workers.dev",
-   "push_token":"hrp_…","prefs":{"claude_turn_finished":false}}
+   "push_token":"hrp_…","push_key":"<43 base64url characters>","prefs":{"claude_turn_finished":false}}
 ← {"t":"res","re":11,"ok":true,"configured":true,"radix_url":"https://radix.example.workers.dev",
    "label":"studio","prefs":{"shell_exited":true,"claude_turn_finished":false,"claude_needs_input":true,
-   "claude_failed":true,"claude_ended":true},"queued":0}
+   "claude_failed":true,"claude_ended":true},"encrypted":true,"queued":0}
 ```
 
 - `radix_url` must be `https` (plain `http` only for loopback, in development).
@@ -680,8 +680,13 @@ and revoking the pairing removes it.
 - `prefs` switches kinds off; missing kinds are on. Keys are `shell_exited`,
   `claude_turn_finished`, `claude_needs_input`, `claude_failed`,
   `claude_ended`.
-- Configuring again replaces the route and drops anything still queued for
-  the old one.
+- `push_key` is optional, and only for agents that advertise the `push_e2e`
+  capability: 32 random bytes, base64url without padding, that
+  the client generated for this route. With it, notification text is
+  encrypted end to end (section 7.4) and the result says `encrypted: true`.
+  Clients should send a new key every time they configure.
+- Configuring again replaces the route (and its key) and drops anything still
+  queued for the old one.
 
 ### 7.2 `push.status` and `push.remove`
 
@@ -693,7 +698,8 @@ and revoking the pairing removes it.
 ← {"t":"res","re":13,"ok":true}
 ```
 
-`push.status` reports `configured: false` when this credential has no route.
+`push.status` reports `configured: false` when this credential has no route,
+and `encrypted: true` when the route has a `push_key`.
 `broken` is set when Radix rejected the token later on; configure again to
 repair it.
 
@@ -714,6 +720,34 @@ title is the session title, the subtitle the machine's hostname, and its
 
 Notifications are queued on disk and retried with backoff (honouring
 `Retry-After`) for up to six hours, matching the APNs expiration Radix sets.
+
+### 7.4 Encrypted notifications
+
+With a `push_key`, the agent sends Radix the notification's text only as
+ciphertext. Radix and APNs see the kind, session ID, turn and the label Radix
+already has, and show generic text ("Claude needs your input") if the phone
+can't decrypt. The app's notification service extension replaces it with the
+real text.
+
+1. Clip `title` and `subtitle` to 100 code points and `body` to 500, ending a
+   clipped string with `…` (as Radix clips plaintext).
+2. Serialize `{"title":…,"subtitle":…,"body":…}` as JSON, leaving out an empty
+   `subtitle`.
+3. Encrypt with AES-256-GCM under the 32-byte key, with a fresh random 12-byte
+   nonce for every attempt and this additional data, fields separated by
+   `\n`, absent ones empty:
+
+   ```
+   hedera-push-v1\n<machine_id>\n<kind>\n<session_id>\n<turn>
+   ```
+
+4. Send `encrypted` = base64url without padding of nonce ‖ ciphertext ‖ tag,
+   in place of `title`, `subtitle` and `body`.
+
+The additional data ties the ciphertext to its machine, kind, session and
+turn, so Radix can't move it onto another notification. The phone rebuilds it
+from the `hedera` fields of the APNs payload. `protocol/fixtures/push-crypto.json`
+is a test vector.
 
 ## 8. Local-only HTTP API
 

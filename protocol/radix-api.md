@@ -146,6 +146,24 @@ per minute.
 | `subtitle` | optional, at most 100 characters |
 | `body` | at most 500 characters |
 | `session_id`, `turn` | passed through to the app for opening the session and replying; `turn` is optional |
+| `encrypted` | instead of `title`, `subtitle` and `body`: the text encrypted end to end ([spec.md](spec.md) section 7.4), base64url, at most 3000 characters. Sending it together with any of those three is `400` |
+
+With `encrypted`, Radix can't read the text and shows generic text in its
+place:
+
+```json
+→ {"event_id": "b_4pgsopgumy-42", "kind": "claude_needs_input",
+   "encrypted": "…", "session_id": "s_4fj7q2m3xa", "turn": 7}
+```
+
+| `kind` | Generic body (the title is the link's label) |
+|---|---|
+| `shell_exited` | A shell exited |
+| `claude_turn_finished` | Claude finished a turn |
+| `claude_needs_input` | Claude needs your input |
+| `claude_failed` | Claude failed |
+| `claude_ended`, `claude_ended_abnormally` | Claude session ended |
+| `test` | Test notification |
 
 | `kind` | Category | Interruption level |
 |---|---|---|
@@ -186,6 +204,10 @@ events with `device_unregistered`.
   "hedera": {"kind": "claude_needs_input", "machine_id": "m_…", "link_id": "l_…", "session_id": "s_4fj7q2m3xa", "turn": 7}
 }
 ```
+
+For an encrypted event, `alert` holds the generic text, `aps` adds
+`"mutable-content": 1` so the app's notification service extension can
+replace it, and `hedera` adds `"enc": "<the encrypted field>"`.
 
 Headers: `apns-push-type: alert`, `apns-priority: 10`, `apns-topic` is the
 app's bundle ID, and `apns-expiration` is six hours ahead. The JWT is ES256

@@ -68,6 +68,7 @@ type Route struct {
 	Key           string          `json:"key"` // pairing ID, or "local"
 	RadixURL      string          `json:"radix_url"`
 	Token         string          `json:"token"`
+	PushKey       string          `json:"push_key,omitempty"` // base64url; text is encrypted when set
 	Label         string          `json:"label"`
 	Prefs         map[string]bool `json:"prefs"`
 	CreatedAt     time.Time       `json:"created_at"`
@@ -97,10 +98,11 @@ type item struct {
 
 // Pusher owns the routes and the delivery queue.
 type Pusher struct {
-	dir    string
-	client *http.Client
-	log    *slog.Logger
-	now    func() time.Time
+	dir       string
+	machineID string
+	client    *http.Client
+	log       *slog.Logger
+	now       func() time.Time
 
 	mu     sync.Mutex
 	routes map[string]*Route
@@ -113,6 +115,8 @@ type Options struct {
 	Client *http.Client
 	Logger *slog.Logger
 	Now    func() time.Time
+	// MachineID goes into the additional data of encrypted notifications.
+	MachineID string
 }
 
 // Open loads routes and the pending queue from dir.
@@ -126,7 +130,7 @@ func Open(dir string, o Options) (*Pusher, error) {
 	if o.Now == nil {
 		o.Now = time.Now
 	}
-	p := &Pusher{dir: dir, client: o.Client, log: o.Logger, now: o.Now, routes: map[string]*Route{}, wake: make(chan struct{}, 1)}
+	p := &Pusher{dir: dir, machineID: o.MachineID, client: o.Client, log: o.Logger, now: o.Now, routes: map[string]*Route{}, wake: make(chan struct{}, 1)}
 	var routes []*Route
 	if err := readJSON(filepath.Join(dir, "push.json"), &routes); err != nil {
 		return nil, err
@@ -194,14 +198,20 @@ func ValidateRadixURL(raw string) (string, error) {
 	return strings.TrimRight(u.String(), "/"), nil
 }
 
-// Configure checks the token with Radix and stores the route for key.
-func (p *Pusher) Configure(ctx context.Context, key, radixURL, token string, prefs map[string]bool) (*Route, error) {
+// Configure checks the token with Radix and stores the route for key. With a
+// pushKey, notification text is encrypted end to end.
+func (p *Pusher) Configure(ctx context.Context, key, radixURL, token, pushKey string, prefs map[string]bool) (*Route, error) {
 	base, err := ValidateRadixURL(radixURL)
 	if err != nil {
 		return nil, proto.Errorf(proto.CodeInvalidArgument, "%v", err)
 	}
 	if !strings.HasPrefix(token, "hrp_") {
 		return nil, proto.Errorf(proto.CodeInvalidArgument, "push_token is not a Radix push token")
+	}
+	if pushKey != "" {
+		if _, err := ParseKey(pushKey); err != nil {
+			return nil, proto.Errorf(proto.CodeInvalidArgument, "%v", err)
+		}
 	}
 	for k := range prefs {
 		if !contains(PrefKinds, k) {
@@ -212,7 +222,7 @@ func (p *Pusher) Configure(ctx context.Context, key, radixURL, token string, pre
 	if err != nil {
 		return nil, err
 	}
-	r := &Route{Key: key, RadixURL: base, Token: token, Label: label, Prefs: map[string]bool{}, CreatedAt: p.now()}
+	r := &Route{Key: key, RadixURL: base, Token: token, PushKey: pushKey, Label: label, Prefs: map[string]bool{}, CreatedAt: p.now()}
 	for _, k := range PrefKinds {
 		on, ok := prefs[k]
 		r.Prefs[k] = !ok || on
@@ -225,7 +235,7 @@ func (p *Pusher) Configure(ctx context.Context, key, radixURL, token string, pre
 	if err := p.saveRoutesLocked(); err != nil {
 		return nil, err
 	}
-	p.log.Info("push configured", "route", key, "radix", base, "label", label)
+	p.log.Info("push configured", "route", key, "radix", base, "label", label, "encrypted", pushKey != "")
 	return r, nil
 }
 
@@ -289,7 +299,8 @@ func (p *Pusher) Status(key string) proto.PushStatus {
 }
 
 func (p *Pusher) statusLocked(r *Route) proto.PushStatus {
-	st := proto.PushStatus{Configured: true, RadixURL: r.RadixURL, Label: r.Label, Prefs: r.Prefs, Broken: r.Broken, LastError: r.LastError}
+	st := proto.PushStatus{Configured: true, RadixURL: r.RadixURL, Label: r.Label, Prefs: r.Prefs, Broken: r.Broken,
+		LastError: r.LastError, Encrypted: r.PushKey != ""}
 	if !r.LastSuccessAt.IsZero() {
 		st.LastSuccessAt = proto.FormatTime(r.LastSuccessAt)
 	}
@@ -438,7 +449,10 @@ func (p *Pusher) noteError(route *Route, msg string) {
 
 // post sends one notification. status is 0 on network errors.
 func (p *Pusher) post(ctx context.Context, r Route, n Notification) (status int, retryAfter time.Duration, msg string) {
-	body, _ := json.Marshal(n)
+	body, err := p.eventBody(r, n)
+	if err != nil {
+		return http.StatusBadRequest, 0, err.Error()
+	}
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, r.RadixURL+"/v1/events", bytes.NewReader(body))
@@ -475,6 +489,29 @@ func (p *Pusher) post(ctx context.Context, r Route, n Notification) (status int,
 		msg = resp.Status
 	}
 	return resp.StatusCode, retryAfter, msg
+}
+
+// eventBody is the JSON for POST /v1/events: plaintext, or for a route with
+// a key, the text encrypted with a fresh nonce.
+func (p *Pusher) eventBody(r Route, n Notification) ([]byte, error) {
+	if r.PushKey == "" {
+		return json.Marshal(n)
+	}
+	key, err := ParseKey(r.PushKey)
+	if err != nil {
+		return nil, err
+	}
+	enc, err := Encrypt(key, p.machineID, n)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(struct {
+		EventID   string `json:"event_id"`
+		Kind      string `json:"kind"`
+		Encrypted string `json:"encrypted"`
+		SessionID string `json:"session_id,omitempty"`
+		Turn      *int   `json:"turn,omitempty"`
+	}{n.EventID, n.Kind, enc, n.SessionID, n.Turn})
 }
 
 // Run delivers queued notifications until ctx is done.

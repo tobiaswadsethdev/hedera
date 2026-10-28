@@ -804,7 +804,7 @@ func TestPushRoutesFollowPairings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(strings.Join(phone.Hello.Capabilities, ","), "push") {
+	if !strings.Contains(strings.Join(phone.Hello.Capabilities, ","), "push,push_e2e") {
 		t.Fatalf("capabilities %v", phone.Hello.Capabilities)
 	}
 	var st proto.PushStatus

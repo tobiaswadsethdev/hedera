@@ -97,7 +97,7 @@ func cmdRun(args []string) error {
 		ResumePath:      filepath.Join(dir, "claude-sessions.json"),
 		Logger:          log,
 	})
-	pusher, err := push.Open(dir, push.Options{Logger: log})
+	pusher, err := push.Open(dir, push.Options{Logger: log, MachineID: cfg.MachineID})
 	if err != nil {
 		return fmt.Errorf("loading push state: %w", err)
 	}

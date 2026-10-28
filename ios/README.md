@@ -38,7 +38,13 @@ Notifications go through Radix, the push relay in `relay/`. Deploy it first
 HEDERA_RADIX_HOST = radix.example.workers.dev
 ```
 
-With it empty, the app builds without the Notifications section. Turn
+With it empty, the app builds without the Notifications section.
+
+When the agent supports it (`push_e2e`), the app gives it a fresh key with
+every link, and notification text is encrypted end to end: Radix and Apple
+see generic text, and `HederaNotificationService`, a notification service
+extension, decrypts the real text on the phone. The keys live in a Keychain
+group shared with the extension; machine records and their tokens don't. Turn
 notifications on per machine on the machine's screen. Builds run from Xcode
 register as `sandbox` with APNs and TestFlight builds as `production`; Radix
 needs to know which, and the app tells it.
@@ -80,4 +86,5 @@ against a real agent from `swift test`; see the comment at its top.
 | `HederaKit/Sources/HederaKit/Storage` | Keychain storage of paired machines |
 | `HederaKit/Sources/HederaKit/Client` | `AgentConnection` (one socket) and `MachineClient` (reconnecting, sessions, terminals) |
 | `Hedera/` | the app: lock, machine list, pairing, sessions, SwiftTerm terminal |
+| `HederaNotificationService/` | decrypts end-to-end encrypted notification text |
 | `Tools/make-icon.swift` | draws the app icon |
