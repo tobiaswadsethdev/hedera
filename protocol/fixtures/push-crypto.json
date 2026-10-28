@@ -1,0 +1,71 @@
+[
+  {
+    "name": "claude needs input",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "nonce": "oKGio6Slpqeoqaqr",
+    "machine_id": "m_aaaabbbbccccdddd",
+    "kind": "claude_needs_input",
+    "session_id": "s_4fj7q2m3xa",
+    "turn": 7,
+    "title": "fix flaky test",
+    "subtitle": "studio",
+    "body": "Claude needs your permission to use Bash: make clean \u0026\u0026 make \u003call\u003e – ok?",
+    "plaintext": "{\"title\":\"fix flaky test\",\"subtitle\":\"studio\",\"body\":\"Claude needs your permission to use Bash: make clean \u0026\u0026 make \u003call\u003e – ok?\"}",
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR-G6f1qmshHHIDDm0jEYviIE9QrJAWimGiLdlQAgSSr4bacrVqGbKH8_aljyWRIgK287hB7g1dDPpRZf0JbAhIeNdea9v9OiZYvQquHsCYtVfPvC8ne04uVAziPN4_7_tSZ2o6iASU81QZK_WfcCDy1eN5Q6mXLnbOdAei5v3TLyxymBx4nKgvQ"
+  },
+  {
+    "name": "test without session or subtitle",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "nonce": "oKGio6Slpqeoqaqr",
+    "machine_id": "m_aaaabbbbccccdddd",
+    "kind": "test",
+    "title": "Hedera",
+    "body": "Test notification from studio",
+    "plaintext": "{\"title\":\"Hedera\",\"body\":\"Test notification from studio\"}",
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR8-2Yx-yv1KAe3L90ztOpixy4wzfVW-9Ai6ZxkEySTbzauhvCOyUZ2gyPQa5dVw8Kqbj6YaJzMY2YqwEt9g0oA"
+  },
+  {
+    "name": "clipped title",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "nonce": "oKGio6Slpqeoqaqr",
+    "machine_id": "m_aaaabbbbccccdddd",
+    "kind": "claude_turn_finished",
+    "session_id": "s_4fj7q2m3xa",
+    "turn": 8,
+    "title": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+    "subtitle": "studio",
+    "body": "Done.",
+    "plaintext": "{\"title\":\"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…\",\"subtitle\":\"studio\",\"body\":\"Done.\"}",
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR0R6xNMDd7MFmrlRHoHFX6flL7wCtqgR34RWbIuQlJw1x2HK00BQhLKF4aF52deC98j3Z9lGGXcVRsbzDCdJN0s8sUxnDxMOomgNBmha0y3c_TNyM449TC3oAsAHTDJdcsX5RiEugef5ogcdnFiV7GYdDXf8MeQGuHPWEOtDvvTwPSLR41J_S3Buwn15OSU-ZH5cbG73ggWx3Bh1w4O_QaPoi6x7dUi0jz4xwc9tl0ErtZCfK9z-95-PYKN4eEQw9INmio3xHLBpQsoTQavNj7UxkTGj-F1KIkZU3QS2HeyeIDAmcmJFKfmtUex8UvpfiEcNKnIqDdOIa-9z6Fxf"
+  },
+  {
+    "name": "different turn",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "machine_id": "m_aaaabbbbccccdddd",
+    "kind": "claude_needs_input",
+    "session_id": "s_4fj7q2m3xa",
+    "turn": 8,
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR-G6f1qmshHHIDDm0jEYviIE9QrJAWimGiLdlQAgSSr4bacrVqGbKH8_aljyWRIgK287hB7g1dDPpRZf0JbAhIeNdea9v9OiZYvQquHsCYtVfPvC8ne04uVAziPN4_7_tSZ2o6iASU81QZK_WfcCDy1eN5Q6mXLnbOdAei5v3TLyxymBx4nKgvQ",
+    "fails": true
+  },
+  {
+    "name": "different machine",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "machine_id": "m_eeeeffffgggghhhh",
+    "kind": "claude_needs_input",
+    "session_id": "s_4fj7q2m3xa",
+    "turn": 7,
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR-G6f1qmshHHIDDm0jEYviIE9QrJAWimGiLdlQAgSSr4bacrVqGbKH8_aljyWRIgK287hB7g1dDPpRZf0JbAhIeNdea9v9OiZYvQquHsCYtVfPvC8ne04uVAziPN4_7_tSZ2o6iASU81QZK_WfcCDy1eN5Q6mXLnbOdAei5v3TLyxymBx4nKgvQ",
+    "fails": true
+  },
+  {
+    "name": "different kind",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "machine_id": "m_aaaabbbbccccdddd",
+    "kind": "claude_turn_finished",
+    "session_id": "s_4fj7q2m3xa",
+    "turn": 7,
+    "encrypted": "oKGio6SlpqeoqaqrnToIRDGnZ51YR-G6f1qmshHHIDDm0jEYviIE9QrJAWimGiLdlQAgSSr4bacrVqGbKH8_aljyWRIgK287hB7g1dDPpRZf0JbAhIeNdea9v9OiZYvQquHsCYtVfPvC8ne04uVAziPN4_7_tSZ2o6iASU81QZK_WfcCDy1eN5Q6mXLnbOdAei5v3TLyxymBx4nKgvQ",
+    "fails": true
+  }
+]

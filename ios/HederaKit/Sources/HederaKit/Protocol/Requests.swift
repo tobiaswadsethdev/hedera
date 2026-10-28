@@ -191,10 +191,12 @@ public struct PushStatus: Codable, Equatable, Sendable {
     public var broken: String?
     public var lastSuccessAt: String?
     public var lastError: String?
+    /// Notification text is encrypted end to end (protocol/spec.md section 7.4).
+    public var encrypted: Bool?
     public var queued: Int
 
     enum CodingKeys: String, CodingKey {
-        case configured, label, prefs, broken, queued
+        case configured, label, prefs, broken, encrypted, queued
         case radixURL = "radix_url"
         case lastSuccessAt = "last_success_at"
         case lastError = "last_error"
@@ -206,17 +208,21 @@ public struct PushConfigure: AgentRequest {
     public static let type = "push.configure"
     public var radixURL: String
     public var pushToken: String
+    /// 32 random bytes, base64url without padding; encrypts notification text.
+    public var pushKey: String?
     public var prefs: [String: Bool]?
 
     enum CodingKeys: String, CodingKey {
         case prefs
         case radixURL = "radix_url"
         case pushToken = "push_token"
+        case pushKey = "push_key"
     }
 
-    public init(radixURL: String, pushToken: String, prefs: [String: Bool]? = nil) {
+    public init(radixURL: String, pushToken: String, pushKey: String? = nil, prefs: [String: Bool]? = nil) {
         self.radixURL = radixURL
         self.pushToken = pushToken
+        self.pushKey = pushKey
         self.prefs = prefs
     }
 }

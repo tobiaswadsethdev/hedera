@@ -763,6 +763,10 @@
             "type": "string",
             "pattern": "^hrp_"
           },
+          "push_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
           "prefs": {
             "type": "object",
             "propertyNames": {
@@ -999,6 +1003,9 @@
           "last_error": {
             "type": "string"
           },
+          "encrypted": {
+            "type": "boolean"
+          },
           "queued": {
             "type": "integer",
             "minimum": 0
@@ -1034,6 +1041,9 @@
           },
           "last_error": {
             "type": "string"
+          },
+          "encrypted": {
+            "type": "boolean"
           },
           "queued": {
             "type": "integer",
