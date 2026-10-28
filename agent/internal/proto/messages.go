@@ -27,6 +27,10 @@ const (
 	TSessionResumable  = "session.resumable"
 	TSessionResume     = "session.resume"
 	TSessionForget     = "session.forget"
+
+	TTranscriptSubscribe   = "transcript.subscribe"
+	TTranscriptUnsubscribe = "transcript.unsubscribe"
+	TTranscriptRead        = "transcript.read"
 )
 
 // Agent-to-client message types.
@@ -36,6 +40,7 @@ const (
 	TLagged       = "lagged"
 	TDetached     = "detached"
 	TEventsLagged = "events.lagged"
+	TTranscript   = "transcript"
 )
 
 // Event types.
@@ -154,6 +159,7 @@ type ClaudeState struct {
 	LastMessagePreview *string      `json:"last_message_preview"`
 	LastError          *ClaudeError `json:"last_error"`
 	EndReason          *string      `json:"end_reason"`
+	Transcript         bool         `json:"transcript,omitempty"`
 }
 
 type Session struct {
@@ -384,4 +390,73 @@ func MarshalError(re uint64, e *Error) []byte {
 // millisecond precision.
 func FormatTime(t time.Time) string {
 	return t.UTC().Format("2006-01-02T15:04:05.000Z07:00")
+}
+
+// Transcript entry kinds (section 6.2).
+const (
+	EntryPrompt     = "prompt"
+	EntryAssistant  = "assistant"
+	EntryToolResult = "tool_result"
+	EntryTurnEnd    = "turn_end"
+	EntryDivider    = "divider"
+	EntryNotice     = "notice"
+)
+
+// TranscriptBlock is one block of a transcript entry. Which fields are set
+// depends on Type: text and thinking use Text; tool_use uses ID, Name and
+// Input; tool_result uses ToolUseID, IsError, Text and Images.
+type TranscriptBlock struct {
+	Type      string          `json:"type"`
+	Text      *string         `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	ToolUseID string          `json:"tool_use_id,omitempty"`
+	IsError   *bool           `json:"is_error,omitempty"`
+	Images    int             `json:"images,omitempty"`
+	Truncated bool            `json:"truncated,omitempty"`
+}
+
+type TranscriptEntry struct {
+	Seq        uint64            `json:"seq"`
+	UUID       string            `json:"uuid,omitempty"`
+	TS         string            `json:"ts,omitempty"`
+	Kind       string            `json:"kind"`
+	Blocks     []TranscriptBlock `json:"blocks,omitempty"`
+	DurationMS *int64            `json:"duration_ms,omitempty"`
+	Reason     string            `json:"reason,omitempty"`
+	Level      string            `json:"level,omitempty"`
+}
+
+type TranscriptSubscribeRequest struct {
+	SessionID string  `json:"session_id"`
+	Since     *uint64 `json:"since,omitempty"`
+	Tail      *int    `json:"tail,omitempty"`
+}
+
+type TranscriptSubscribeResult struct {
+	Seq      uint64 `json:"seq"`
+	FirstSeq uint64 `json:"first_seq"`
+	Reset    bool   `json:"reset"`
+}
+
+type TranscriptUnsubscribeRequest struct {
+	SessionID string `json:"session_id"`
+}
+
+type TranscriptReadRequest struct {
+	SessionID string `json:"session_id"`
+	Before    uint64 `json:"before"`
+	Limit     *int   `json:"limit,omitempty"`
+}
+
+type TranscriptReadResult struct {
+	Entries []TranscriptEntry `json:"entries"`
+}
+
+// Transcript carries new entries for a transcript subscription.
+type Transcript struct {
+	T         string            `json:"t"`
+	SessionID string            `json:"session_id"`
+	Entries   []TranscriptEntry `json:"entries"`
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ids"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ptyx"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/transcript"
 )
 
 var errProcessDone = os.ErrProcessDone
@@ -45,6 +46,9 @@ type Config struct {
 	// ResumePath is where Claude sessions are remembered across agent
 	// restarts, so they can be resumed; empty disables it.
 	ResumePath string
+	// TranscriptRoots are the directories Claude Code transcripts may be read
+	// from; default transcript.Roots(Home).
+	TranscriptRoots []string
 
 	Logger *slog.Logger
 	Now    func() time.Time
@@ -94,6 +98,9 @@ func NewManager(cfg Config) *Manager {
 	}
 	if cfg.Home == "" {
 		cfg.Home, _ = os.UserHomeDir()
+	}
+	if cfg.TranscriptRoots == nil {
+		cfg.TranscriptRoots = transcript.Roots(cfg.Home)
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()

@@ -250,6 +250,8 @@ public final class MachineClient: Identifiable {
             guard let conn = connection else { return }
             lastSeq = l.seq
             Task { try? await subscribe(conn, since: l.seq) }
+        case .transcript:
+            break // nothing subscribes yet
         case let .closed(error):
             for a in channels.values { a.channel = nil }
             channels = [:]

@@ -549,6 +549,7 @@ Claude Code reports its state through hooks. `hedera install-hooks` registers
 | `last_message_preview` | the last turn's final message, whitespace collapsed, at most 280 characters |
 | `last_error` | `{error, error_details}` from the last failed turn, cleared by the next prompt |
 | `end_reason` | from `SessionEnd` (`prompt_input_exit`, `logout`, `other`), or `exited` if Claude Code ended without one |
+| `transcript` | `true` once the agent can serve this session's transcript (section 6.2); absent otherwise |
 
 ### 6.1 Transitions
 
@@ -580,6 +581,80 @@ Notes:
   `SessionStart` after `SessionEnd` `clear`/`resume`, after `ended`, or with
   `source` `clear`, `resume` or `fork`, which rebinds the PTY to the new ID.
 - Hooks after the process exited, and unknown hook events, are ignored.
+
+### 6.2 Transcript
+
+Agents with the `transcript` capability serve a structured view of a Claude
+session's conversation, for clients that show it as a chat rather than a
+terminal. The PTY stays the session; the transcript is a read-only view of it,
+and input still goes through `session.input`.
+
+The agent reads Claude Code's JSONL transcript, whose path arrives as
+`transcript_path` in hook payloads. It accepts only a `.jsonl` file under
+`projects/` in Claude Code's configuration directory (`$CLAUDE_CONFIG_DIR`, or
+`~/.claude`), after resolving symlinks. When `/clear`, `--resume` or a fork
+moves Claude Code to a new file, the agent follows it and inserts a `divider`.
+
+```json
+→ {"t":"transcript.subscribe","id":30,"session_id":"s_4fj7q2m3xa","since":120}
+← {"t":"res","re":30,"ok":true,"seq":134,"first_seq":1,"reset":false}
+← {"t":"transcript","session_id":"s_4fj7q2m3xa","entries":[…]}
+```
+
+- `seq` numbers a session's entries from 1. It is stable for the life of the
+  session within one `boot_id`.
+- With `since`, the entries after it follow the response. Without it, the last
+  `tail` entries do (default 200, at most 1000).
+- `reset` is `true` when `since` is greater than `seq`, for example because the
+  agent restarted. No backlog follows: the client discards what it has and
+  subscribes again without `since`.
+- `first_seq` is the oldest entry the agent still holds.
+- After the backlog, new entries arrive in `transcript` messages as Claude
+  Code writes them, a few hundred milliseconds behind. The agent sends at the
+  pace the connection accepts, so nothing is dropped.
+- A connection may subscribe to several sessions. Subscribing again to the same
+  session replaces that subscription. `transcript.unsubscribe` with a
+  `session_id` ends one.
+- `not_found` means no such session; `unavailable` means it has no transcript
+  yet.
+
+```json
+→ {"t":"transcript.read","id":31,"session_id":"s_4fj7q2m3xa","before":21,"limit":100}
+← {"t":"res","re":31,"ok":true,"entries":[…entries 1–20…]}
+```
+
+`transcript.read` returns up to `limit` (default 100, at most 1000) entries
+before `before`, oldest first, for scrolling back.
+
+#### Entries
+
+```json
+{"seq":121,"uuid":"4b0c…","ts":"2026-10-28T12:05:12.151Z","kind":"assistant",
+ "blocks":[{"type":"thinking","text":"…"},
+           {"type":"text","text":"I'll run the tests."},
+           {"type":"tool_use","id":"toolu_01…","name":"Bash",
+            "input":{"command":"go test ./...","description":"Run tests"}}]}
+{"seq":122,"uuid":"9e1d…","ts":"…","kind":"tool_result",
+ "blocks":[{"type":"tool_result","tool_use_id":"toolu_01…","is_error":false,"text":"ok …"}]}
+```
+
+| `kind` | Blocks and fields |
+|---|---|
+| `prompt` | what was typed: `text` blocks, an `image` block per attached image, or a slash command as `text` (`/compact focus on tests`) |
+| `assistant` | `text`, `thinking` and `tool_use` (`id`, `name`, `input`) blocks |
+| `tool_result` | `tool_result` blocks: `tool_use_id`, `is_error`, `text`, and `images` (a count) when the result had images |
+| `turn_end` | no blocks; `duration_ms` |
+| `divider` | no blocks; `reason` is `compact`, `clear`, `resume` or `fork` |
+| `notice` | a `text` block; `level` is `info` or `error` (API errors, local command output) |
+
+- The agent normalizes Claude Code's records, which change between Claude
+  Code versions, so clients depend only on this format. Kinds and block types
+  may be added; clients skip what they don't know.
+- Left out: meta and harness-injected messages, subagent (sidechain) records,
+  empty thinking, and Claude Code's bookkeeping records.
+- `text` in any block, and every string inside a `tool_use` `input`, is cut to
+  16 KiB at a character boundary; a cut block has `"truncated":true`.
+- `uuid` and `ts` come from Claude Code and may be absent.
 
 ## 7. Push
 

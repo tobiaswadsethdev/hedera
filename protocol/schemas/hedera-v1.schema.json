@@ -203,6 +203,9 @@
             "string",
             "null"
           ]
+        },
+        "transcript": {
+          "type": "boolean"
         }
       }
     },
@@ -531,6 +534,42 @@
           "then": {
             "$ref": "#/$defs/requests/session.forget"
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "transcript.subscribe"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/transcript.subscribe"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "transcript.unsubscribe"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/transcript.unsubscribe"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "transcript.read"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/transcript.read"
+          }
         }
       ]
     },
@@ -811,6 +850,64 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
           }
         }
+      },
+      "transcript.subscribe": {
+        "required": [
+          "session_id"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "since": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "tail": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
+      },
+      "transcript.unsubscribe": {
+        "required": [
+          "session_id"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          }
+        }
+      },
+      "transcript.read": {
+        "required": [
+          "session_id",
+          "before"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "before": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
       }
     },
     "results": {
@@ -1087,7 +1184,41 @@
           }
         }
       },
-      "session.forget": {}
+      "session.forget": {},
+      "transcript.subscribe": {
+        "required": [
+          "seq",
+          "first_seq",
+          "reset"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "first_seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reset": {
+            "type": "boolean"
+          }
+        }
+      },
+      "transcript.unsubscribe": {},
+      "transcript.read": {
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/transcriptEntry"
+            }
+          }
+        }
+      }
     },
     "response": {
       "type": "object",
@@ -1428,7 +1559,8 @@
             "event",
             "lagged",
             "detached",
-            "events.lagged"
+            "events.lagged",
+            "transcript"
           ]
         }
       },
@@ -1492,8 +1624,243 @@
           "then": {
             "$ref": "#/$defs/eventsLagged"
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
+                "const": "transcript"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/transcriptMessage"
+          }
         }
       ]
+    },
+    "transcriptBlock": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "input": {
+          "type": "object"
+        },
+        "tool_use_id": {
+          "type": "string"
+        },
+        "is_error": {
+          "type": "boolean"
+        },
+        "images": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "text",
+                  "thinking"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "tool_use"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "id",
+              "name",
+              "input"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "tool_result"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "tool_use_id",
+              "is_error",
+              "text"
+            ]
+          }
+        }
+      ]
+    },
+    "transcriptEntry": {
+      "type": "object",
+      "required": [
+        "seq",
+        "kind"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "uuid": {
+          "type": "string"
+        },
+        "ts": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transcriptBlock"
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "info",
+            "error"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "prompt",
+                  "assistant",
+                  "tool_result",
+                  "notice"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "blocks"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "turn_end"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "duration_ms"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "divider"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "properties": {
+              "reason": {
+                "enum": [
+                  "compact",
+                  "clear",
+                  "resume",
+                  "fork"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "notice"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "level"
+            ]
+          }
+        }
+      ]
+    },
+    "transcriptMessage": {
+      "type": "object",
+      "required": [
+        "t",
+        "session_id",
+        "entries"
+      ],
+      "properties": {
+        "t": {
+          "const": "transcript"
+        },
+        "session_id": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transcriptEntry"
+          }
+        }
+      }
     }
   }
 }

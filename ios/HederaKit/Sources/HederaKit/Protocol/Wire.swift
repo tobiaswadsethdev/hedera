@@ -79,6 +79,7 @@ public enum Wire {
         case "lagged": return .lagged(try d.decode(Lagged.self, from: data))
         case "detached": return .detached(try d.decode(Detached.self, from: data))
         case "events.lagged": return .eventsLagged(try d.decode(EventsLagged.self, from: data))
+        case "transcript": return .transcript(try d.decode(TranscriptMessage.self, from: data))
         case let t: return .unknown(t)
         }
     }
@@ -91,6 +92,7 @@ public enum Inbound: Sendable {
     case lagged(Lagged)
     case detached(Detached)
     case eventsLagged(EventsLagged)
+    case transcript(TranscriptMessage)
     /// A message type this build doesn't know; ignored per spec section 9.
     case unknown(String)
 }

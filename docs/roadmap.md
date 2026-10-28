@@ -207,6 +207,15 @@ interactive `hedera attach` in a console window.
   release builds.
 - ~~Revoke a machine from the app~~ (done: `pairing.unpair`).
 
+### Claude chat view
+
+A native view of Claude sessions next to the terminal, built from Claude
+Code's JSONL transcript (protocol/spec.md section 6.2): the agent normalizes
+the records and streams them, the app shows them as a chat with a composer
+that types into the PTY. The agent side is built; the app view comes next.
+Later: answering permission prompts and questions from the chat through a
+`PermissionRequest` hook, and nested subagent transcripts.
+
 ## Known risks
 
 - **Restarting the agent ends all sessions.** The agent owns the PTYs (no

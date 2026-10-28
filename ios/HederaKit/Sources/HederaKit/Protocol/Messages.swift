@@ -163,9 +163,11 @@ public struct ClaudeState: Codable, Equatable, Sendable {
     public var lastMessagePreview: String?
     public var lastError: ClaudeError?
     public var endReason: String?
+    /// The agent can serve this session's transcript (section 6.2).
+    public var transcript: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case status, turn
+        case status, turn, transcript
         case sessionID = "session_id"
         case needsInput = "needs_input"
         case lastMessagePreview = "last_message_preview"
@@ -182,6 +184,7 @@ public struct ClaudeState: Codable, Equatable, Sendable {
         try c.encode(lastMessagePreview, forKey: .lastMessagePreview)
         try c.encode(lastError, forKey: .lastError)
         try c.encode(endReason, forKey: .endReason)
+        if transcript == true { try c.encode(true, forKey: .transcript) }
     }
 }
 

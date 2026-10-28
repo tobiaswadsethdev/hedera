@@ -8,6 +8,7 @@ import (
 
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ptyx"
+	"github.com/tobiaswadsethdev/hedera/agent/internal/transcript"
 )
 
 const (
@@ -30,17 +31,18 @@ type Session struct {
 
 	writeMu sync.Mutex // serializes input so submit sequences stay intact
 
-	mu        sync.Mutex
-	ring      *Ring
-	title     string
-	size      proto.Size
-	status    string
-	exit      *proto.Exit
-	exitTime  time.Time
-	lastInput time.Time
-	claude    *claudeTracker // kind claude, or once a hook arrives
-	subs      map[*Subscriber]struct{}
-	closing   string // who asked it to close: "client", "agent" or ""
+	mu         sync.Mutex
+	ring       *Ring
+	title      string
+	size       proto.Size
+	status     string
+	exit       *proto.Exit
+	exitTime   time.Time
+	lastInput  time.Time
+	claude     *claudeTracker         // kind claude, or once a hook arrives
+	transcript *transcript.Transcript // once a hook names a transcript
+	subs       map[*Subscriber]struct{}
+	closing    string // who asked it to close: "client", "agent" or ""
 
 	exitedCh chan struct{}
 }
@@ -50,6 +52,14 @@ func (s *Session) ID() string { return s.id }
 // HookToken is the per-session secret handed to the process as
 // HEDERA_HOOK_TOKEN.
 func (s *Session) HookToken() string { return s.hookToken }
+
+// Transcript returns the session's Claude transcript, or nil until a hook
+// has named one.
+func (s *Session) Transcript() *transcript.Transcript {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.transcript
+}
 
 // Exited is closed once the process has exited and all output is buffered.
 func (s *Session) Exited() <-chan struct{} { return s.exitedCh }

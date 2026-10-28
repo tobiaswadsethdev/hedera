@@ -318,3 +318,38 @@ func TestExitLogShowsTheCode(t *testing.T) {
 		t.Fatalf("log: %s", out)
 	}
 }
+
+func TestTranscriptFollowsHooks(t *testing.T) {
+	root := t.TempDir()
+	m := newTestManager(t, func(c *Config) { c.TranscriptRoots = []string{root} })
+	s, sub := newClaudeSession(t, m, proto.KindClaude)
+	path := func(name string) func(*HookEvent) {
+		return func(e *HookEvent) { e.TranscriptPath = root + "/p/" + name }
+	}
+
+	s.ApplyHook(hook(HookSessionStart))
+	if s.Transcript() != nil || s.Snapshot().Claude.Transcript {
+		t.Fatal("transcript without a path")
+	}
+	s.ApplyHook(hook(HookUserPromptSubmit, path("a.jsonl")))
+	if s.Transcript() == nil || !s.Snapshot().Claude.Transcript {
+		t.Fatal("transcript not followed")
+	}
+	drain(sub)
+
+	// A path outside the roots is refused and changes nothing.
+	s.ApplyHook(hook(HookPostToolUse, func(e *HookEvent) { e.TranscriptPath = "/etc/x.jsonl" }))
+	if evs := drain(sub); len(evs) != 0 {
+		t.Fatalf("published %v", evs)
+	}
+
+	// /clear moves Claude Code to a new file under a new Claude session ID.
+	s.ApplyHook(hook(HookSessionEnd, func(e *HookEvent) { e.Reason = "clear" }))
+	s.ApplyHook(hook(HookSessionStart, path("b.jsonl"), func(e *HookEvent) { e.SessionID = "def"; e.Source = "clear" }))
+	if first, last := s.Transcript().Seqs(); first != 1 || last != 1 {
+		t.Fatalf("seqs %d %d, want one divider", first, last)
+	}
+	if e := s.Transcript().After(0, 1)[0]; e.Kind != proto.EntryDivider || e.Reason != "clear" {
+		t.Fatalf("got %+v", e)
+	}
+}

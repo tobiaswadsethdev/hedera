@@ -6,6 +6,7 @@ public enum ConnectionEvent: Sendable {
     case lagged(Lagged)
     case detached(Detached)
     case eventsLagged(EventsLagged)
+    case transcript(TranscriptMessage)
     case output(channel: UInt32, offset: UInt64, payload: Data)
     case closed(TransportError)
 }
@@ -151,6 +152,7 @@ public final class AgentConnection {
             case let .lagged(l): onEvent(.lagged(l))
             case let .detached(d): onEvent(.detached(d))
             case let .eventsLagged(l): onEvent(.eventsLagged(l))
+            case let .transcript(m): onEvent(.transcript(m))
             case .unknown: break
             }
         }
