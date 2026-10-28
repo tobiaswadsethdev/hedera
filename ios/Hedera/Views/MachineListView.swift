@@ -53,6 +53,13 @@ struct MachineListView: View {
                     path.append(Route.machine(client.id))
                 }
             }
+            .onChange(of: model.pendingRoute) { _, route in
+                // Tapping a notification.
+                guard let route else { return }
+                model.pendingRoute = nil
+                pairing = false
+                path = NavigationPath(route)
+            }
             .onChange(of: pendingPairURL) { _, url in
                 if url != nil { pairing = true }
             }

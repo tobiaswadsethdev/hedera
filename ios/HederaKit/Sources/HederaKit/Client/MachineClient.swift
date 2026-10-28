@@ -42,6 +42,8 @@ public final class MachineClient: Identifiable {
     public private(set) var state: ConnectionState = .suspended
     public private(set) var sessions: [Session] = []
     public private(set) var hello: HelloResult?
+    /// Called each time a connection is up and synced.
+    @ObservationIgnored public var onOnline: (() -> Void)?
 
     public nonisolated var id: String { machineID }
     private nonisolated let machineID: String
@@ -120,6 +122,7 @@ public final class MachineClient: Identifiable {
             do {
                 try await connectAndSync()
                 state = .online
+                onOnline?()
                 failure = await waitForClose()
                 if ContinuousClock.now - connectedAt > .seconds(10) { attempt = 0 }
             } catch let e as TransportError {
@@ -382,6 +385,21 @@ public final class MachineClient: Identifiable {
     /// Asks the agent to forget this phone's token (protocol/spec.md section 1.4).
     public func unpair() async throws {
         _ = try await online().call(PairingUnpair())
+    }
+
+    /// For a notification reply, which runs in the background with little
+    /// time: connects if needed, waits until online, then types `text` and
+    /// presses Enter. With `ifTurn`, the agent refuses with `stale` if Claude
+    /// has moved on since the notification.
+    public func sendWhenOnline(sessionID: String, text: String, ifTurn: Int?, timeout: Duration = .seconds(10)) async throws {
+        resume()
+        let deadline = ContinuousClock.now + timeout
+        while state != .online {
+            if case let .revoked(why) = state { throw TransportError.failed(why) }
+            guard ContinuousClock.now < deadline else { throw NotConnected() }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try await sendInput(sessionID: sessionID, text: text, submit: true, ifTurn: ifTurn)
     }
 
     // MARK: Push (protocol/spec.md section 7)

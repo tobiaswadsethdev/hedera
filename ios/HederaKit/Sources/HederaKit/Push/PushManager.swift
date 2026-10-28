@@ -103,6 +103,13 @@ public final class PushManager {
         return try await enable(machine, prefs: status.prefs)
     }
 
+    /// Asks Radix to send this phone a test notification.
+    public func sendTest() async throws -> RadixClient.TestResult {
+        guard let radix else { throw PushError.unavailable }
+        guard let device else { throw PushError.notRegistered }
+        return try await radix.sendTest(device: device)
+    }
+
     /// Unregisters this phone, which removes every link.
     public func forgetDevice() async {
         if let device, let radix { try? await radix.deleteDevice(device) }

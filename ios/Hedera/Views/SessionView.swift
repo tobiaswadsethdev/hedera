@@ -6,6 +6,7 @@ struct SessionView: View {
     let machine: MachineClient
     let sessionID: String
     @Environment(AppLock.self) private var lock
+    @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var controller: TerminalController?
     @State private var ended: String?
@@ -67,6 +68,7 @@ struct SessionView: View {
             Text("The process on \(machine.record.name) is ended.")
         }
         .onAppear {
+            model.visibleSession = (machine.id, sessionID)
             guard controller == nil else { return }
             let c = TerminalController(machine: machine, sessionID: sessionID)
             c.onEnded = { ended = $0 }
@@ -90,6 +92,7 @@ struct SessionView: View {
             }
         }
         .onDisappear {
+            if model.visibleSession?.sessionID == sessionID { model.visibleSession = nil }
             controller?.stop()
             controller = nil
         }
