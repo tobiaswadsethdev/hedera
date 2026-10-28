@@ -214,7 +214,8 @@ interactive `hedera attach` in a console window.
 A native view of Claude sessions next to the terminal, built from Claude
 Code's JSONL transcript (protocol/spec.md section 6.2): the agent normalizes
 the records and streams them, the app shows them as a chat with a composer
-that types into the PTY. The agent side is built; the app view comes next.
+that types into the PTY, a Stop button that sends Esc, and a toggle back to
+the terminal. Built and tried in the simulator against a real Claude session.
 Later: answering permission prompts and questions from the chat through a
 `PermissionRequest` hook, and nested subagent transcripts.
 
