@@ -409,9 +409,13 @@ public final class MachineClient: Identifiable {
     /// Whether the agent can send notifications at all.
     public var supportsPush: Bool { hello?.capabilities.contains("push") ?? false }
 
+    /// Whether the agent takes a `push_key` and encrypts notification text.
+    public var supportsPushEncryption: Bool { hello?.capabilities.contains("push_e2e") ?? false }
+
     @discardableResult
-    public func configurePush(radixURL: String, pushToken: String, prefs: [String: Bool]? = nil) async throws -> PushStatus {
-        try await online().call(PushConfigure(radixURL: radixURL, pushToken: pushToken, prefs: prefs))
+    public func configurePush(radixURL: String, pushToken: String, pushKey: String? = nil,
+                              prefs: [String: Bool]? = nil) async throws -> PushStatus {
+        try await online().call(PushConfigure(radixURL: radixURL, pushToken: pushToken, pushKey: pushKey, prefs: prefs))
     }
 
     public func pushStatus() async throws -> PushStatus {

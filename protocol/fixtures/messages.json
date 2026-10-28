@@ -691,6 +691,7 @@
       "id": 20,
       "radix_url": "https://radix.example.workers.dev",
       "push_token": "hrp_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+      "push_key": "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA",
       "prefs": {
         "claude_turn_finished": false
       }
@@ -714,6 +715,7 @@
         "claude_failed": true,
         "claude_ended": true
       },
+      "encrypted": true,
       "queued": 0
     }
   },
@@ -770,6 +772,7 @@
         "claude_ended": true
       },
       "last_success_at": "2026-10-27T21:00:00.000Z",
+      "encrypted": true,
       "queued": 1
     }
   },

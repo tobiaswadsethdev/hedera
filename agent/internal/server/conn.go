@@ -568,7 +568,8 @@ func Hostname() string {
 func (s *Server) capabilities() []string {
 	caps := []string{"shell", "claude", "transcript"}
 	if s.Push != nil {
-		caps = append(caps, "push")
+		// push_e2e: push.configure takes a push_key (spec section 7.4).
+		caps = append(caps, "push", "push_e2e")
 	}
 	return caps
 }
@@ -592,7 +593,7 @@ func (c *conn) handlePushConfigure(data []byte) (any, func(), error) {
 	}
 	ctx, cancel := context.WithTimeout(c.ctx, 15*time.Second)
 	defer cancel()
-	if _, err := c.srv.Push.Configure(ctx, c.principal, req.RadixURL, req.PushToken, req.Prefs); err != nil {
+	if _, err := c.srv.Push.Configure(ctx, c.principal, req.RadixURL, req.PushToken, req.PushKey, req.Prefs); err != nil {
 		return nil, nil, err
 	}
 	return c.srv.Push.Status(c.principal), nil, nil

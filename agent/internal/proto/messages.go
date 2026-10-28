@@ -277,6 +277,7 @@ type ForgetRequest struct {
 type PushConfigureRequest struct {
 	RadixURL  string          `json:"radix_url"`
 	PushToken string          `json:"push_token"`
+	PushKey   string          `json:"push_key,omitempty"`
 	Prefs     map[string]bool `json:"prefs,omitempty"`
 }
 
@@ -288,6 +289,7 @@ type PushStatus struct {
 	Broken        string          `json:"broken,omitempty"`
 	LastSuccessAt string          `json:"last_success_at,omitempty"`
 	LastError     string          `json:"last_error,omitempty"`
+	Encrypted     bool            `json:"encrypted,omitempty"`
 	Queued        int             `json:"queued"`
 }
 
