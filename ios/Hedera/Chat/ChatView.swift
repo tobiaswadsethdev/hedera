@@ -17,11 +17,20 @@ struct ChatView: View {
     @State private var sending = false
     @State private var error: String?
     @FocusState private var composing: Bool
+    /// Folded once per transcript change, not on every render: a long
+    /// session's fold is slow enough that redoing it on each scroll or
+    /// expand hung the main thread until the watchdog killed the app.
+    @State private var items: [ChatItem] = []
+    /// The last entry folded into `items`; following it scrolls once the new
+    /// rows are in the list.
+    @State private var foldedSeq: UInt64?
 
     private var session: Session? { machine.session(sessionID) }
     private var claude: ClaudeState? { session?.claude }
     private var working: Bool { claude?.status == SessionStatus.working }
-    private var items: [ChatItem] { ChatItem.fold(feed.entries) }
+    /// Entries are only appended, prepended or reset, so this changes
+    /// whenever they do.
+    private var feedVersion: [UInt64?] { [UInt64(feed.entries.count), feed.entries.first?.seq, feed.entries.last?.seq] }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,9 +46,7 @@ struct ChatView: View {
                             if feed.entries.isEmpty {
                                 emptyState
                             }
-                            ForEach(items) { item in
-                                row(item).id(item.id)
-                            }
+                            ChatRows(items: items, cwd: session?.cwd ?? "", working: working)
                             Color.clear.frame(height: 1).id("bottom")
                                 .onAppear { atBottom = true }
                                 .onDisappear { atBottom = false }
@@ -47,11 +54,15 @@ struct ChatView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
+                    .onChange(of: feedVersion, initial: true) {
+                        items = ChatItem.fold(feed.entries)
+                        foldedSeq = feed.entries.last?.seq
+                    }
                     .scrollDismissesKeyboard(.interactively)
                     .defaultScrollAnchor(.bottom)
-                    .onChange(of: feed.entries.last?.seq) {
+                    .onChange(of: foldedSeq) {
                         if !scrolledToLatest {
-                            // The first entries arrive after the view is drawn.
+                            // The first rows arrive after the view is drawn.
                             scrolledToLatest = true
                             proxy.scrollTo("bottom", anchor: .bottom)
                         } else if atBottom {
@@ -60,12 +71,6 @@ struct ChatView: View {
                     }
                     .onChange(of: jumps) {
                         withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
-                    .onAppear {
-                        if !feed.entries.isEmpty {
-                            scrolledToLatest = true
-                            proxy.scrollTo("bottom", anchor: .bottom)
-                        }
                     }
                     if !atBottom {
                         Button {
@@ -110,51 +115,6 @@ struct ChatView: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
-    }
-
-    @ViewBuilder
-    private func row(_ item: ChatItem) -> some View {
-        switch item {
-        case let .prompt(_, text, images):
-            HStack {
-                Spacer(minLength: 40)
-                VStack(alignment: .trailing, spacing: 4) {
-                    if images > 0 {
-                        Label("\(images) image\(images == 1 ? "" : "s")", systemImage: "photo")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    if !text.isEmpty {
-                        Text(text)
-                            .textSelection(.enabled)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
-                    }
-                }
-            }
-        case let .text(_, text):
-            MarkdownText(text: text)
-        case let .thinking(_, text):
-            ThinkingView(text: text)
-        case let .tool(_, call):
-            ToolCard(call: call, cwd: session?.cwd ?? "", working: working)
-        case let .turnEnd(_, ms):
-            Text("Worked for \(Self.duration(ms))")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity)
-        case let .divider(_, reason):
-            HStack {
-                VStack { Divider() }
-                Text(Self.dividerText(reason)).font(.caption).foregroundStyle(.secondary).fixedSize()
-                VStack { Divider() }
-            }
-        case let .notice(_, text, isError):
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(isError ? Color.red.opacity(0.85) : .secondary)
-                .textSelection(.enabled)
-        }
     }
 
     private func needsInputBanner(_ needs: NeedsInput) -> some View {
@@ -251,6 +211,65 @@ struct ChatView: View {
         case "resume": "Resumed a conversation"
         case "fork": "Forked the conversation"
         default: reason
+        }
+    }
+}
+
+/// The conversation's rows, a view of their own so that state the list
+/// doesn't use (scroll position, the draft) leaves them alone.
+private struct ChatRows: View {
+    let items: [ChatItem]
+    let cwd: String
+    let working: Bool
+
+    var body: some View {
+        ForEach(items) { item in
+            row(item).id(item.id)
+        }
+    }
+
+    @ViewBuilder
+    private func row(_ item: ChatItem) -> some View {
+        switch item {
+        case let .prompt(_, text, images):
+            HStack {
+                Spacer(minLength: 40)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if images > 0 {
+                        Label("\(images) image\(images == 1 ? "" : "s")", systemImage: "photo")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if !text.isEmpty {
+                        Text(text)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.accentColor.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+            }
+        case let .text(_, text):
+            MarkdownText(text: text)
+        case let .thinking(_, text):
+            ThinkingView(text: text)
+        case let .tool(_, call):
+            ToolCard(call: call, cwd: cwd, working: working)
+        case let .turnEnd(_, ms):
+            Text("Worked for \(ChatView.duration(ms))")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity)
+        case let .divider(_, reason):
+            HStack {
+                VStack { Divider() }
+                Text(ChatView.dividerText(reason)).font(.caption).foregroundStyle(.secondary).fixedSize()
+                VStack { Divider() }
+            }
+        case let .notice(_, text, isError):
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(isError ? Color.red.opacity(0.85) : .secondary)
+                .textSelection(.enabled)
         }
     }
 }
