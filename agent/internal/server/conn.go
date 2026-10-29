@@ -215,6 +215,7 @@ var handlers = map[string]handler{
 	proto.TSessionResize:     (*conn).handleResize,
 	proto.TSessionClose:      (*conn).handleClose,
 	proto.TSessionRemove:     (*conn).handleRemove,
+	proto.TSessionRename:     (*conn).handleRename,
 	proto.TEventsSubscribe:   (*conn).handleSubscribe,
 	proto.TEventsUnsubscribe: (*conn).handleUnsubscribe,
 	proto.TPushConfigure:     (*conn).handlePushConfigure,
@@ -486,6 +487,18 @@ func (c *conn) handleRemove(data []byte) (any, func(), error) {
 	return nil, nil, c.srv.Manager.Remove(req.SessionID)
 }
 
+func (c *conn) handleRename(data []byte) (any, func(), error) {
+	var req proto.RenameRequest
+	if err := decode(data, &req); err != nil {
+		return nil, nil, err
+	}
+	s, err := c.srv.Manager.Get(req.SessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, nil, s.Rename(req.Title)
+}
+
 func (c *conn) handleSubscribe(data []byte) (any, func(), error) {
 	var req proto.SubscribeRequest
 	if err := decode(data, &req); err != nil {
@@ -566,7 +579,7 @@ func Hostname() string {
 }
 
 func (s *Server) capabilities() []string {
-	caps := []string{"shell", "claude", "transcript"}
+	caps := []string{"shell", "claude", "transcript", "rename"}
 	if s.Push != nil {
 		// push_e2e: push.configure takes a push_key (spec section 7.4).
 		caps = append(caps, "push", "push_e2e")

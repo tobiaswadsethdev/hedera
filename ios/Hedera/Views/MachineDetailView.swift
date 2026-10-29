@@ -8,6 +8,7 @@ struct MachineDetailView: View {
     @State private var creating: NewSessionKind?
     @State private var resumable: [Resumable] = []
     @State private var error: String?
+    @State private var renaming: Session?
 
     private var live: [Session] { machine.sessions.filter { $0.exit == nil } }
     private var exited: [Session] { machine.sessions.filter { $0.exit != nil }.reversed() }
@@ -34,6 +35,7 @@ struct MachineDetailView: View {
                     sessionRow(s)
                         .swipeActions {
                             Button("Close", role: .destructive) { run { try await machine.closeSession(s.id) } }
+                            renameButton(s)
                         }
                 }
             }
@@ -65,6 +67,7 @@ struct MachineDetailView: View {
                         sessionRow(s)
                             .swipeActions {
                                 Button("Remove", role: .destructive) { run { try await machine.removeSession(s.id) } }
+                                renameButton(s)
                             }
                     }
                 }
@@ -95,10 +98,18 @@ struct MachineDetailView: View {
         .task(id: machine.state) {
             if machine.state == .online { await loadResumable() }
         }
+        .renameSessionAlert(machine: machine, session: $renaming)
         .alert("Couldn't do that", isPresented: .constant(error != nil)) {
             Button("OK") { error = nil }
         } message: {
             Text(error ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private func renameButton(_ s: Session) -> some View {
+        if machine.canRename, machine.state == .online {
+            Button("Rename") { renaming = s }.tint(.indigo)
         }
     }
 

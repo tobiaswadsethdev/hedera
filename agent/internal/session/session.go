@@ -3,8 +3,10 @@ package session
 import (
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/tobiaswadsethdev/hedera/agent/internal/proto"
 	"github.com/tobiaswadsethdev/hedera/agent/internal/ptyx"
@@ -335,6 +337,29 @@ func (s *Session) Resize(cols, rows int) error {
 	}
 	s.size = proto.Size{Cols: cols, Rows: rows}
 	s.publishLocked(proto.Event{Type: proto.EvSessionResized, SessionID: s.id, Cols: cols, Rows: rows})
+	return nil
+}
+
+// Rename changes the session's title, and the title a resumable Claude
+// session comes back with.
+func (s *Session) Rename(title string) error {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return proto.Errorf(proto.CodeInvalidArgument, "title is empty")
+	}
+	if utf8.RuneCountInString(title) > 200 {
+		return proto.Errorf(proto.CodeInvalidArgument, "title is longer than 200 characters")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.title == title {
+		return nil
+	}
+	s.title = title
+	if s.claude != nil && s.exit == nil {
+		s.trackClaudeLocked()
+	}
+	s.publishUpdatedLocked("renamed")
 	return nil
 }
 

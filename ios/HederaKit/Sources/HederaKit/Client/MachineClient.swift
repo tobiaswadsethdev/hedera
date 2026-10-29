@@ -430,6 +430,12 @@ public final class MachineClient: Identifiable {
         sessions.removeAll { $0.id == id }
     }
 
+    /// Needs the agent's `rename` capability; the new title arrives as a
+    /// `session.updated` event.
+    public func renameSession(_ id: String, title: String) async throws {
+        _ = try await online().call(SessionRename(sessionID: id, title: title))
+    }
+
     public func sendInput(sessionID: String, text: String, submit: Bool, ifTurn: Int? = nil) async throws {
         _ = try await online().call(SessionInput(sessionID: sessionID, data: text, submit: submit, ifTurn: ifTurn))
     }

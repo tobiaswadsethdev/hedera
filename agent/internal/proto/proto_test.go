@@ -50,6 +50,7 @@ var requestTypes = map[string]func() any{
 	TSessionResize:         func() any { return &ResizeRequest{} },
 	TSessionClose:          func() any { return &CloseRequest{} },
 	TSessionRemove:         func() any { return &RemoveRequest{} },
+	TSessionRename:         func() any { return &RenameRequest{} },
 	TEventsSubscribe:       func() any { return &SubscribeRequest{} },
 	TEventsUnsubscribe:     func() any { return &struct{}{} },
 	TPushConfigure:         func() any { return &PushConfigureRequest{} },

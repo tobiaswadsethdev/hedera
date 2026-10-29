@@ -289,6 +289,16 @@
     }
   },
   {
+    "name": "session.rename",
+    "direction": "client_to_agent",
+    "message": {
+      "t": "session.rename",
+      "id": 10,
+      "session_id": "s_4fj7q2m3xa",
+      "title": "fix flaky test"
+    }
+  },
+  {
     "name": "empty ok result",
     "direction": "agent_to_client",
     "response_to": "session.resize",

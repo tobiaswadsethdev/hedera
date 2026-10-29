@@ -162,6 +162,23 @@ public struct SessionRemove: AgentRequest {
     public init(sessionID: String) { self.sessionID = sessionID }
 }
 
+public struct SessionRename: AgentRequest {
+    public typealias Result = EmptyResult
+    public static let type = "session.rename"
+    public var sessionID: String
+    public var title: String
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case sessionID = "session_id"
+    }
+
+    public init(sessionID: String, title: String) {
+        self.sessionID = sessionID
+        self.title = title
+    }
+}
+
 public struct EventsSubscribe: AgentRequest {
     public struct Result: Codable, Equatable, Sendable {
         public var seq: UInt64
