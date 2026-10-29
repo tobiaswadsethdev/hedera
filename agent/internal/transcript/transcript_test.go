@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -86,7 +87,14 @@ func TestClip(t *testing.T) {
 }
 
 func TestAllowed(t *testing.T) {
-	roots := []string{"/home/me/.claude/projects"}
+	// Unix-style paths, made absolute on Windows with a drive letter.
+	native := func(p string) string {
+		if runtime.GOOS == "windows" && strings.HasPrefix(p, "/") {
+			p = "C:" + p
+		}
+		return filepath.FromSlash(p)
+	}
+	roots := []string{native("/home/me/.claude/projects")}
 	for path, want := range map[string]bool{
 		"/home/me/.claude/projects/-src-app/1234.jsonl":           true,
 		"/home/me/.claude/projects/x.jsonl":                       true,
@@ -98,7 +106,7 @@ func TestAllowed(t *testing.T) {
 		"/home/me/.claude/projects-evil/1234.jsonl":               false,
 		"/home/me/.claude/projects/-src-app/sub/../../../x.jsonl": false,
 	} {
-		if got := Allowed(path, roots); got != want {
+		if got := Allowed(native(path), roots); got != want {
 			t.Errorf("Allowed(%q) = %v", path, got)
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -78,7 +79,7 @@ func TestFetchDownloadInstall(t *testing.T) {
 	if b, _ := os.ReadFile(exe); string(b) != string(bin) {
 		t.Fatal("binary not replaced")
 	}
-	if fi, _ := os.Stat(exe); fi.Mode().Perm() != 0o755 {
+	if fi, _ := os.Stat(exe); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o755 {
 		t.Fatalf("mode %v", fi.Mode())
 	}
 	if entries, _ := os.ReadDir(filepath.Dir(exe)); len(entries) != 1 {
