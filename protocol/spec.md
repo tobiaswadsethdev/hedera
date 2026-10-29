@@ -308,9 +308,12 @@ Sessions are ordered by `created_at`.
 | `cols`, `rows` | 80, 24 | 1–1000 |
 | `title` | derived from command and cwd | at most 200 characters |
 
-On Unix the agent runs commands through the user's login shell
-(`$SHELL -l -c 'exec "$0" "$@"' argv…`) so that `PATH` matches an interactive
-login, even when the agent runs under launchd or systemd. Every process gets:
+On Unix the agent runs commands through the user's shell as an interactive
+login shell (`$SHELL -l -i -c 'exec "$0" "$@"' argv…`) so that `PATH` matches a
+terminal, even when the agent runs under launchd or systemd. Interactive
+matters: rc files such as `~/.bashrc` usually return early otherwise, and that
+is often where `~/.local/bin` (Claude Code's install location) joins `PATH`.
+Every process gets:
 
 | Variable | Value |
 |---|---|
