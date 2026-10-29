@@ -39,6 +39,7 @@ func init() {
 		{"push", "[status | test | configure --radix URL --token T | remove]", "push notification routes through Radix", cmdPush},
 		{"install-service", "[--uninstall] [--print] [--force]", "run hedera at login (launchd or systemd --user)", cmdInstallService},
 		{"install-hooks", "[--dry-run] [--uninstall] [--settings PATH]", "add hedera's hooks to Claude Code's settings.json", cmdInstallHooks},
+		{"upgrade", "[--check] [--url URL]", "install the latest release (the agent also does this by itself)", cmdUpgrade},
 		{"hook", "", "Claude Code hook handler (run by Claude Code, not by hand)", cmdHook},
 		{"version", "", "print the version", func([]string) error {
 			fmt.Printf("hedera %s (protocol %d)\n", version, proto.Version)

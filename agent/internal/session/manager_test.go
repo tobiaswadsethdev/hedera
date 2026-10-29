@@ -450,3 +450,19 @@ func TestShutdownHangsUpEverything(t *testing.T) {
 		t.Fatal("create after shutdown succeeded")
 	}
 }
+
+func TestCloseIfIdle(t *testing.T) {
+	m := newTestManager(t, nil)
+	s := mustCreate(t, m, "/bin/sh", "-c", "read x")
+	if m.CloseIfIdle() {
+		t.Fatal("closed with a session running")
+	}
+	s.Write([]byte("\r"))
+	waitExit(t, s)
+	if !m.CloseIfIdle() {
+		t.Fatal("did not close once idle")
+	}
+	if _, err := m.Create(proto.CreateRequest{Kind: proto.KindShell, Argv: []string{"/bin/sh"}}); err == nil {
+		t.Fatal("created a session after closing")
+	}
+}
