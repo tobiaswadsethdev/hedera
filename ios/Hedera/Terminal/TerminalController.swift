@@ -11,14 +11,19 @@ final class TerminalController: NSObject, TerminalSink {
     private let machine: MachineClient
     private let sessionID: String
     var onEnded: ((String) -> Void)?
+    /// The terminal gained (true) or lost focus, which is when the keyboard
+    /// comes and goes.
+    var onFocusChange: ((Bool) -> Void)?
     /// False while the app is locked: keystrokes are dropped, not sent.
     var inputEnabled = true
 
     init(machine: MachineClient, sessionID: String) {
         self.machine = machine
         self.sessionID = sessionID
-        view = TerminalView(frame: .zero)
+        let v = FocusReportingTerminalView(frame: .zero)
+        view = v
         super.init()
+        v.onFocusChange = { [weak self] in self?.onFocusChange?($0) }
         view.terminalDelegate = self
         view.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
         view.nativeBackgroundColor = .black
@@ -53,6 +58,25 @@ final class TerminalController: NSObject, TerminalSink {
 
     func terminalWrite(_ data: Data) {
         view.feed(byteArray: ArraySlice([UInt8](data)))
+    }
+}
+
+/// SwiftTerm's view, saying when it becomes or stops being first responder.
+/// Keyboard notifications aren't enough: with a hardware keyboard only the
+/// accessory bar shows, and they can fire before anyone is listening.
+final class FocusReportingTerminalView: TerminalView {
+    var onFocusChange: ((Bool) -> Void)?
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok { onFocusChange?(true) }
+        return ok
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok { onFocusChange?(false) }
+        return ok
     }
 }
 
