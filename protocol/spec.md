@@ -218,6 +218,7 @@ Capabilities defined so far:
 | `shell` | shell sessions (always present) |
 | `claude` | Claude Code hook integration (section 6) |
 | `push` | push notifications through Radix (section 7) |
+| `rename` | `session.rename` (section 4.13) |
 
 ## 4. Sessions
 
@@ -475,6 +476,18 @@ session's output has been sent first.
 
 `reason` is `exited` or `removed`.
 
+### 4.13 `session.rename`
+
+```json
+→ {"t":"session.rename","id":17,"session_id":"s_…","title":"fix flaky test"}
+← {"t":"res","re":17,"ok":true}
+```
+
+`title` is trimmed of surrounding whitespace and must then be 1–200
+characters. Exited sessions can be renamed too. The change is announced as
+`session.updated` with reason `renamed`, and a Claude session resumed after an
+agent restart (4.11) keeps the new title.
+
 ## 5. Events
 
 ### 5.1 `events.subscribe`
@@ -515,7 +528,7 @@ where `seq` is the last event delivered; the client subscribes again with
 | Type | Fields |
 |---|---|
 | `session.created` | `session` |
-| `session.updated` | `session`, `reason` (`attached`, `detached`, `claude`) |
+| `session.updated` | `session`, `reason` (`attached`, `detached`, `claude`, `renamed`) |
 | `session.resized` | `session_id`, `cols`, `rows` |
 | `session.exited` | `session` (with `exit` set) |
 | `session.removed` | `session_id` |

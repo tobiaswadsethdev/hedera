@@ -331,6 +331,31 @@ func TestRemove(t *testing.T) {
 	}
 }
 
+func TestRename(t *testing.T) {
+	m := newTestManager(t, nil)
+	s := mustCreate(t, m, "/bin/sh", "-c", "read x")
+	evs, _, _, _ := m.Bus().Subscribe(nil)
+	if err := s.Rename("  fix flaky test \n"); err != nil {
+		t.Fatal(err)
+	}
+	ev := <-evs.C
+	if ev.Type != proto.EvSessionUpdated || ev.Reason != "renamed" || ev.Session.Title != "fix flaky test" {
+		t.Fatalf("event %+v", ev)
+	}
+	if got := s.Snapshot().Title; got != "fix flaky test" {
+		t.Fatalf("title %q", got)
+	}
+	var pe *proto.Error
+	for _, bad := range []string{" ", strings.Repeat("é", 201)} {
+		if err := s.Rename(bad); !errors.As(err, &pe) || pe.Code != proto.CodeInvalidArgument {
+			t.Fatalf("rename %q: %v", bad, err)
+		}
+	}
+	if err := s.Rename(strings.Repeat("é", 200)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMaxSessions(t *testing.T) {
 	m := newTestManager(t, func(c *Config) { c.MaxSessions = 1 })
 	s := mustCreate(t, m, "/bin/sh", "-c", "read x")

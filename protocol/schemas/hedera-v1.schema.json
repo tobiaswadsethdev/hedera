@@ -431,6 +431,18 @@
           "if": {
             "properties": {
               "t": {
+                "const": "session.rename"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/requests/session.rename"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "t": {
                 "const": "events.subscribe"
               }
             }
@@ -776,6 +788,22 @@
           }
         }
       },
+      "session.rename": {
+        "required": [
+          "session_id",
+          "title"
+        ],
+        "properties": {
+          "session_id": {
+            "$ref": "#/$defs/sessionId"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
       "events.subscribe": {
         "properties": {
           "since_seq": {
@@ -1054,6 +1082,7 @@
       "session.resize": {},
       "session.close": {},
       "session.remove": {},
+      "session.rename": {},
       "events.subscribe": {
         "required": [
           "seq",

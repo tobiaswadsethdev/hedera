@@ -18,6 +18,7 @@ const (
 	TSessionResize     = "session.resize"
 	TSessionClose      = "session.close"
 	TSessionRemove     = "session.remove"
+	TSessionRename     = "session.rename"
 	TEventsSubscribe   = "events.subscribe"
 	TEventsUnsubscribe = "events.unsubscribe"
 	TPushConfigure     = "push.configure"
@@ -239,6 +240,11 @@ type CloseRequest struct {
 
 type RemoveRequest struct {
 	SessionID string `json:"session_id"`
+}
+
+type RenameRequest struct {
+	SessionID string `json:"session_id"`
+	Title     string `json:"title"`
 }
 
 type SubscribeRequest struct {

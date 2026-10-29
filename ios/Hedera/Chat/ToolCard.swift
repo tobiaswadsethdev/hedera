@@ -71,7 +71,11 @@ struct ToolCard: View {
         if call.failed && !call.stopped { return true }
         switch call.name {
         case "TodoWrite": return true
-        case "Edit": return diff.count <= 12
+        case "Edit":
+            // A diff has a line for each line of the longer side; skip the
+            // diff itself when that alone rules it out.
+            let lines = { (key: String) in call.input[key]?.string?.reduce(1) { $1 == "\n" ? $0 + 1 : $0 } ?? 1 }
+            return max(lines("old_string"), lines("new_string")) <= 12 && diff.count <= 12
         default: return false
         }
     }

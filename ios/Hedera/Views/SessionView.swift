@@ -11,6 +11,8 @@ struct SessionView: View {
     @State private var controller: TerminalController?
     @State private var ended: String?
     @State private var confirmClose = false
+    @State private var renaming: Session?
+    @State private var keyboardShown = false
     @State private var feed: TranscriptFeed?
     /// Chat or terminal for Claude sessions; remembered across sessions.
     @AppStorage("claudeView") private var claudeView = "chat"
@@ -62,12 +64,25 @@ struct SessionView: View {
                     .accessibilityLabel(showingChat ? "Show Terminal" : "Show Chat")
                 }
             }
+            if !showingChat {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        if keyboardShown {
+                            _ = controller?.view.resignFirstResponder()
+                        } else {
+                            _ = controller?.view.becomeFirstResponder()
+                        }
+                    } label: {
+                        Image(systemName: keyboardShown ? "keyboard.chevron.compact.down" : "keyboard")
+                    }
+                    .accessibilityLabel(keyboardShown ? "Hide Keyboard" : "Show Keyboard")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    if !showingChat {
-                        Button {
-                            _ = controller?.view.becomeFirstResponder()
-                        } label: { Label("Show Keyboard", systemImage: "keyboard") }
+                    if machine.canRename {
+                        Button { renaming = session } label: { Label("Rename", systemImage: "pencil") }
+                            .disabled(machine.state != .online)
                     }
                     if session?.exit == nil {
                         Button(role: .destructive) { confirmClose = true } label: {
@@ -79,6 +94,7 @@ struct SessionView: View {
                 }
             }
         }
+        .renameSessionAlert(machine: machine, session: $renaming)
         .confirmationDialog("Close this session?", isPresented: $confirmClose, titleVisibility: .visible) {
             Button("Close (hang up)", role: .destructive) {
                 Task { try? await machine.closeSession(sessionID) }
@@ -99,6 +115,7 @@ struct SessionView: View {
             guard controller == nil else { return }
             let c = TerminalController(machine: machine, sessionID: sessionID)
             c.onEnded = { ended = $0 }
+            c.onFocusChange = { keyboardShown = $0 }
             c.inputEnabled = !lock.isLocked
             controller = c
         }

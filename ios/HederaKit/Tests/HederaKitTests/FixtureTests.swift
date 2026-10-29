@@ -31,6 +31,7 @@ nonisolated(unsafe) private let requestTypes: [String: Reply] = [
     SessionResize.type: request(SessionResize.self),
     SessionClose.type: request(SessionClose.self),
     SessionRemove.type: request(SessionRemove.self),
+    SessionRename.type: request(SessionRename.self),
     EventsSubscribe.type: request(EventsSubscribe.self),
     EventsUnsubscribe.type: request(EventsUnsubscribe.self),
     PushConfigure.type: request(PushConfigure.self),
