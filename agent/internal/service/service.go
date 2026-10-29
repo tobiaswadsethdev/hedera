@@ -104,14 +104,15 @@ func xmlEscape(s string) string {
 	return b.String()
 }
 
+// systemdUnit builds a user unit, which is why it carries no network
+// ordering: network-online.target does not exist in the user manager, and
+// the agent rebinds as Tailscale addresses come and go (TailnetListener).
 func systemdUnit(exe, home string) (Unit, error) {
 	if strings.ContainsAny(exe, "\n\"\\") {
 		return Unit{}, errors.New("executable path contains characters systemd can't quote")
 	}
 	content := fmt.Sprintf(`[Unit]
 Description=Hedera agent (terminals and Claude Code sessions for the Hedera app)
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 ExecStart="%s" run
