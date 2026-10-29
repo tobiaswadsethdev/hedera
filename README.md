@@ -18,8 +18,8 @@ remaining phases is in [docs/roadmap.md](docs/roadmap.md).
 |---|---|---|
 | 1 | Protocol spec, agent on macOS/Linux, pairing, CLI client | done |
 | 2 | Claude Code hooks, `install-hooks`, Claude session states | done |
-| 3 | iOS app: pairing, machine list, terminal, reconnect | built; on-device testing next |
-| 4 | Radix + APNs, notifications with reply | server side done; app side waits for phase 3 |
+| 3 | iOS app: pairing, machine list, terminal, reconnect | pairing and reconnect verified on device; terminal not yet exercised |
+| 4 | Radix + APNs, notifications with reply | server side done; the app registers for encrypted push; delivery and reply not yet verified |
 | 5 | Windows (ConPTY, logon task), hardening | done, except items that need the app or a Windows desktop |
 
 ## Build
