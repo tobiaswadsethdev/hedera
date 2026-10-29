@@ -41,7 +41,15 @@ type Config struct {
 	// `tailscale whois` reports them.
 	AllowedUsers []string `json:"allowed_users,omitempty"`
 	AllowedTags  []string `json:"allowed_tags,omitempty"`
+	// AutoUpdate (default true) lets the agent install new releases and
+	// restart onto a replaced binary once no sessions are running.
+	AutoUpdate *bool `json:"auto_update,omitempty"`
+	// UpdateURL overrides where releases are fetched from (update.DefaultURL).
+	UpdateURL string `json:"update_url,omitempty"`
 }
+
+// AutoUpdates reports whether auto_update is on.
+func (c *Config) AutoUpdates() bool { return c.AutoUpdate == nil || *c.AutoUpdate }
 
 // Dir returns the state directory: $HEDERA_HOME, else <user config dir>/hedera.
 func Dir() (string, error) {

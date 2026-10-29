@@ -203,10 +203,11 @@ interactive `hedera attach` in a console window.
   decrypts.
 - ~~Offer `claude --resume` for Claude sessions lost to an agent restart~~
   (done: `session.resumable` / `session.resume`, `hedera resume`).
-- Agent upgrades that refuse to restart while sessions are alive: covered
-  for now by `install-service` refusing without `--force`, and by resuming
-  Claude sessions afterwards. A dedicated `hedera upgrade` can come with
-  release builds.
+- ~~Agent upgrades that refuse to restart while sessions are alive~~ (done
+  on macOS and Linux: releases built by the tag-triggered release workflow, installed by
+  the agent or `hedera upgrade`, restart deferred until no sessions run).
+  Still to do: signed releases, Windows, and showing "update pending" in the
+  app.
 - ~~Revoke a machine from the app~~ (done: `pairing.unpair`).
 
 ### Claude chat view

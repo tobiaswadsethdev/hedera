@@ -11,9 +11,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -183,6 +185,29 @@ func cmdRun(args []string) error {
 		}()
 	}
 
+	var restart atomic.Bool
+	var exe string
+	switch {
+	case !cfg.AutoUpdates():
+		log.Info("auto-update off in config.json")
+	case runtime.GOOS == "windows":
+	default:
+		if exe, err = stableExecutable(); err != nil {
+			log.Info("auto-update off", "reason", err)
+			break
+		}
+		u := &selfUpdater{
+			exe:     exe,
+			base:    updateURL(cfg, ""),
+			fetch:   version != "dev",
+			mgr:     mgr,
+			log:     log,
+			restart: func() { restart.Store(true); stop() },
+		}
+		wg.Add(1)
+		go func() { defer wg.Done(); u.run(ctx) }()
+	}
+
 	var runErr error
 	select {
 	case <-ctx.Done():
@@ -195,6 +220,10 @@ func cmdRun(args []string) error {
 	mgr.Shutdown(shutdownCtx)
 	cancel()
 	wg.Wait()
+	if restart.Load() && runErr == nil {
+		log.Info("restarting", "exe", exe)
+		return reexec(exe)
+	}
 	return runErr
 }
 

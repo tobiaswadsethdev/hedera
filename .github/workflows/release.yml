@@ -1,0 +1,34 @@
+name: release
+
+# Tag with scripts/release.sh. Builds every platform on one Linux runner and
+# publishes them, with the manifest agents update from, as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+      - name: Test
+        working-directory: agent
+        run: go vet ./... && go test ./...
+      - name: Build
+        run: scripts/build-release.sh "$GITHUB_REF_NAME"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=()
+          [[ $GITHUB_REF_NAME != *-* ]] || prerelease=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" --title "hedera $GITHUB_REF_NAME" "${prerelease[@]}" \
+            --verify-tag --generate-notes \
+            "agent/dist/$GITHUB_REF_NAME"/manifest.json "agent/dist/$GITHUB_REF_NAME"/hedera_*

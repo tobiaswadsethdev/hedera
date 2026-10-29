@@ -346,6 +346,19 @@ func (m *Manager) runningLocked() int {
 	return n
 }
 
+// CloseIfIdle stops the manager taking new sessions if none are running or
+// starting, and reports whether it did. The agent uses it to restart onto a
+// new binary without ending anyone's session.
+func (m *Manager) CloseIfIdle() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.runningLocked()+m.starting > 0 {
+		return false
+	}
+	m.closed = true
+	return true
+}
+
 // Get returns a session by ID.
 func (m *Manager) Get(id string) (*Session, error) {
 	m.mu.Lock()

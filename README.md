@@ -119,6 +119,36 @@ Sessions you close from a client, agent restarts, and exits right after you
 typed (`exit`, `/exit`) don't. Notifications are queued on disk and retried if
 Radix is unreachable.
 
+## Updates
+
+On macOS and Linux the agent installs new releases by itself. It checks a
+minute after starting and then every six hours, downloads the build for its
+platform, checks it against the release's SHA-256 manifest, and puts it in
+place of its own binary. Because restarting the agent ends every session, it
+restarts onto the new binary (same PID, so launchd and systemd don't notice)
+only once no sessions are running. It does the same when anything else
+replaces its binary, such as `go install` or `hedera upgrade`, so development
+builds (`version` = `dev`) restart onto a rebuilt binary but never download
+releases.
+
+```sh
+hedera upgrade --check   # is there a newer release?
+hedera upgrade           # install it now; the agent restarts onto it when idle
+```
+
+`"auto_update": false` in `config.json` turns this off, and `update_url`
+points it somewhere other than this repository's latest GitHub release. Releases are not signed yet; the
+checksum only catches corrupt downloads.
+
+To publish a release, tag an up-to-date `main`; the
+[release workflow](.github/workflows/release.yml) builds macOS and Linux
+binaries and publishes them:
+
+```sh
+scripts/release.sh v0.1.0             # tag and push; the workflow does the rest
+scripts/release.sh v0.1.0 --dry-run   # just build into agent/dist/v0.1.0
+```
+
 ## Windows
 
 `hedera` runs on Windows 10 1809 or newer (it needs ConPTY). Sessions default
