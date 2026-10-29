@@ -68,7 +68,11 @@ func DefaultShell() []string {
 }
 
 // WrapLogin runs argv through the user's login shell so PATH and other
-// profile settings match a normal login, even under launchd or systemd.
+// profile settings match a terminal, even under launchd or systemd.
+//
+// The shell is interactive (-i) as well as a login shell: many rc files
+// (~/.bashrc, ~/.zshrc) return early when not interactive, and that is often
+// where ~/.local/bin, mise or nvm get added to PATH. The PTY makes -i safe.
 func WrapLogin(argv []string) []string {
 	return wrapLogin(UserShell(), argv)
 }
@@ -77,12 +81,12 @@ func wrapLogin(shell string, argv []string) []string {
 	switch filepath.Base(shell) {
 	case "sh", "bash", "zsh", "dash", "ksh", "mksh", "ash", "yash":
 		// $0 is argv[0]; "$@" the rest. exec replaces the shell.
-		return append([]string{shell, "-l", "-c", `exec "$0" "$@"`}, argv...)
+		return append([]string{shell, "-l", "-i", "-c", `exec "$0" "$@"`}, argv...)
 	case "fish":
-		return append([]string{shell, "-l", "-c", "exec $argv", "--"}, argv...)
+		return append([]string{shell, "-l", "-i", "-c", "exec $argv", "--"}, argv...)
 	default:
 		// csh-family and unknown shells: fall back to a POSIX login shell.
-		return append([]string{"/bin/sh", "-l", "-c", `exec "$0" "$@"`}, argv...)
+		return append([]string{"/bin/sh", "-l", "-i", "-c", `exec "$0" "$@"`}, argv...)
 	}
 }
 

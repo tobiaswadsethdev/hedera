@@ -227,7 +227,9 @@ Later: answering permission prompts and questions from the chat through a
 - **Replies need Tailscale on the phone.** Without the VPN, a reply fails and
   falls back to "tap to open".
 - **Services start with a bare environment.** Shells and `claude` run through
-  your login shell for PATH. Linux needs `loginctl enable-linger` to run while
+  your shell as an interactive login shell, so they see the PATH your
+  terminal does; an rc file that `exec`s another program (tmux, say) when
+  interactive takes over those sessions too. Linux needs `loginctl enable-linger` to run while
   you're logged out. macOS may show privacy prompts attributed to `hedera`.
 - **Claude Code holds hooks back until a folder is trusted**, so new folders
   show `starting` until you accept the trust dialog.
